@@ -5,16 +5,20 @@ import sys
 import rospy
 import cv2
 import numpy as np
+import matplotlib.pyplot as plt
 from std_msgs.msg import String
 from sensor_msgs.msg import Image
 from std_msgs.msg import Float64MultiArray, Float64
 from cv_bridge import CvBridge, CvBridgeError
 
-
 class image_converter:
 
   # Defines publisher and subscriber
   def __init__(self):
+    target = cv2.imread('/home/yanniknelson/catkin_ws/targettmp.png', 1)
+    wall = cv2.imread('/home/yanniknelson/catkin_ws/walltmp.png', 1)
+    self.targettemp = cv2.inRange(target, (200, 200, 200), (255, 255, 255))
+    self.walltemp = cv2.inRange(wall, (200, 200, 200), (255, 255, 255))
     # initialize the node named image_processing
     rospy.init_node('image_processing', anonymous=True)
     # initialize a publisher to send images from camera1 to a topic named image_topic1
@@ -22,16 +26,23 @@ class image_converter:
     # initialize a subscriber to recieve messages rom a topic named /robot/camera1/image_raw and use callback function to recieve data
     self.image_sub1 = rospy.Subscriber("/camera1/robot/image_raw",Image,self.callback1)
     self.image_sub1 = rospy.Subscriber("/camera2/robot/image_raw",Image, self.callback2)
+    self.image_sub1 = rospy.Subscriber("/camera2/robot/image_raw",Image, self.callback2)
+
     
     self.robot_joint2_pub = rospy.Publisher("/robot/joint2_position_controller/command", Float64, queue_size=10)
     self.robot_joint3_pub = rospy.Publisher("/robot/joint3_position_controller/command", Float64, queue_size=10)
     self.robot_joint4_pub = rospy.Publisher("/robot/joint4_position_controller/command", Float64, queue_size=10)
     self.robot_joints_pub = rospy.Publisher("/robot/joint_states", Float64MultiArray, queue_size=10)
+    self.target_joints_pub = rospy.Publisher("/target/joint_states", Float64MultiArray, queue_size=10)
     self.start_time = rospy.get_time()
     # initialize the bridge between openCV and ROS
     self.bridge = CvBridge()
-    self.targettemp = cv2.inRange(cv2.imread('target.png', 1), (200, 200, 200), (255, 255, 255))
-    self.walltemp = cv2.inRange(cv2.imread('wall.png', 1), (200, 200, 200), (255, 255, 255))
+    self.target_xs = []
+    self.target_ys = []
+    self.target_zs = []
+    self.times = []
+    self.elapsed_time = 0
+    
     # self.targetChamfer = cv2.distanceTransform(cv2.bitwise_not(target),cv2.DIST_L2,0)
     # self.wallChamfer = cv2.distanceTransform(cv2.bitwise_not(wall),cv2.DIST_L2,0)
 
@@ -167,14 +178,15 @@ class image_converter:
       res = cv2.matchTemplate(mask, self.targettemp, cv2.TM_SQDIFF_NORMED)
       _, _, topLeft, _ = cv2.minMaxLoc(res)
       targetCenter = topLeft + np.array([self.targettemp.shape[0]//2, self.targettemp.shape[1]//2])
-      temp = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
-      temp[targetCenter[1], targetCenter[0]] = [0,0,255]
+      # temp = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
+      # temp[targetCenter[1], targetCenter[0]] = [0,0,255]
 
       res = cv2.matchTemplate(mask, self.walltemp, cv2.TM_SQDIFF_NORMED)
       _, _, topLeft, _ = cv2.minMaxLoc(res)
       wallCenter = topLeft + np.array([self.walltemp.shape[0]//2, self.walltemp.shape[1]//2])
-      temp[wallCenter[1], wallCenter[0]] = [0,0,255]
-      cv2.imshow('o '+image, temp)
+      # temp[wallCenter[1], wallCenter[0]] = [0,0,255]
+      # cv2.imshow('o '+image, temp)
+      return np.array(targetCenter)
 
   # Calculate the conversion from pixel to meter
   def pixel2meter(self,plane):
@@ -201,6 +213,8 @@ class image_converter:
       jointpos = self.green_zx
     elif (Joint == 5):
       jointpos = self.red_zx
+    elif (Joint == 'target'):
+      jointpos = self.target_zx
     vec = jointpos - self.yellow_zx
     return self.scale_zx * vec[0]
 
@@ -216,34 +230,34 @@ class image_converter:
       jointpos = self.green_zy
     elif (Joint == 5):
       jointpos = self.red_zy
+    elif (Joint == 'target'):
+      jointpos = self.target_zy
     vec = jointpos - self.yellow_zy
     return self.scale_zy * vec[0]
 
   def get_z(self, Joint):
     jointpos = None
     if (Joint == 1):
-      jointpos = self.yellow_zy
+      jointposzy = self.yellow_zy
+      jointposzx = self.yellow_zx
     elif (Joint == 2):
-      jointpos = self.blue_zy
+      jointposzy = self.blue_zy
+      jointposzx = self.blue_zx
     elif (Joint == 3):
-      jointpos = self.blue_zy
+      jointposzy = self.blue_zy
+      jointposzx = self.blue_zx
     elif (Joint == 4):
-      jointpos = self.green_zy
+      jointposzy = self.green_zy
+      jointposzx = self.green_zx
     elif (Joint == 5):
-      jointpos = self.red_zy
-    z_zy = (self.yellow_zy - jointpos)[1] * self.scale_zy
-    if (Joint == 1):
-      jointpos = self.yellow_zx
-    elif (Joint == 2):
-      jointpos = self.blue_zx
-    elif (Joint == 3):
-      jointpos = self.blue_zx
-    elif (Joint == 4):
-      jointpos = self.green_zx
-    elif (Joint == 5):
-      jointpos = self.red_zx
-    z_zx = (self.yellow_zx - jointpos)[1] * self.scale_zy
-    return max(z_zy, z_zx)
+      jointposzy = self.red_zy
+      jointposzx = self.red_zx
+    elif (Joint == 'target'):
+      jointposzy = self.target_zy
+      jointposzx = self.target_zx
+    z_zy = (self.yellow_zy - jointposzy)[1] * self.scale_zy
+    z_zx = (self.yellow_zx - jointposzx)[1] * self.scale_zy
+    return (z_zy + z_zx)/2
 
   def detect_position_in_world(self, Joint):
     x = self.get_x(Joint)
@@ -286,6 +300,8 @@ class image_converter:
 
     # Uncomment if you want to save the image
     #cv2.imwrite('image_copy.png', cv_image)
+    self.elapsed_time = rospy.get_time() - self.start_time
+    
 
     self.red_zx = self.detect_red_in_image("image_zx")
     self.red_zy = self.detect_red_in_image("image_zy")
@@ -295,6 +311,8 @@ class image_converter:
     self.green_zy = self.detect_green_in_image("image_zy")
     self.yellow_zx = self.detect_yellow_in_image("image_zx")
     self.yellow_zy = self.detect_yellow_in_image("image_zy")
+    self.target_zx = self.detect_orange_in_image("image_zx")
+    self.target_zy = self.detect_orange_in_image("image_zy")
 
     self.scale_zy = self.pixel2meter('zy')
     self.scale_zx = self.pixel2meter('zx')
@@ -303,19 +321,38 @@ class image_converter:
     self.blue_pos = self.detect_position_in_world(2)
     self.green_pos = self.detect_position_in_world(4)
     self.red_pos = self.detect_position_in_world(5)
+    self.target_pos = self.detect_position_in_world('target')
+
+    # if (self.elapsed_time > 5):
+    #   plt.plot(self.times, self.target_xs)
+    #   plt.show()
+    # else:
+    #   self.times.append(self.elapsed_time)
+    #   self.target_xs.append(self.target_pos[0])
+    #   self.target_ys.append(self.target_pos[1])
+    #   self.target_zs.append(self.target_pos[2])
+
+    self.targetposs= Float64MultiArray()
+    self.targetposs.data = self.target_pos
 
     self.link3 = self.green_pos-self.blue_pos
     self.link4 = self.red_pos-self.green_pos
-
-    if (self.link3[2] < 0):
-      self.link3[2] = 0
     
-    link3zy = self.projToPlane(self.link3, np.array([0,1,0]))
+    # m3 = np.arcsin(self.link3[0]/-3.5) 
+
     print(self.link3)
-    m3 = self.angleToPlane(self.link3,np.array([1, 0, 0]))
+    
     # m3 = np.arcsin(self.green_pos[1]/(-3.5))
-    m2 = self.angleToPlane(self.link3, np.array([0,-1,0]))/np.cos(m3)
+    # m2 = self.angleToPlane(self.link3, np.array([0,-1,0]))/np.cos(m3)
+    
+
+    m3 = self.angleToPlane(self.link3,np.array([1, 0, 0]))
+    self.link3[2] = max(self.link3[2], 0)
     m2 =(-np.arctan((self.link3[1])/(self.link3[2])))
+
+    self.link3[2] = max(self.link3[2], 0)
+
+    m3 = self.angleToPlane(self.link3,np.array([1, 0, 0]))
     
     # m2 = -np.arctan2(self.link3[1], self.link3[2])
     # m2 = self.angleBetweenVecs(self.link3, link3zy)
@@ -352,10 +389,6 @@ class image_converter:
     self.Joint4 = Float64()
     self.Joint4.data = j4
 
-    # print("angle from xz plane")
-    # print((np.pi/2)-self.angleBetweenVecs(np.array([0,-1,0]), self.detect_position_in_world(4)-self.detect_position_in_world(2)))
-    # print("angle from xy plane")
-    # print((np.pi/2)-self.angleBetweenVecs(np.array([1,0,0]), self.detect_position_in_world(4)-self.detect_position_in_world(2)))
     self.image_zx[self.red_zx[1], self.red_zx[0]] = [255,255,255]
     self.image_zx[self.blue_zx[1], self.blue_zx[0]] = [255,255,255]
     self.image_zx[self.yellow_zx[1], self.yellow_zx[0]] = [255,255,255]
@@ -366,18 +399,16 @@ class image_converter:
     self.image_zy[self.yellow_zy[1], self.yellow_zy[0]] = [255,255,255]
     self.image_zy[self.green_zy[1], self.green_zy[0]] = [255,255,255]
 
-    self.detect_orange_in_image("image_zx")
-    self.detect_orange_in_image("image_zy")
-
     im1 = cv2.imshow('window1', self.image_zy)
     im2 = cv2.imshow('window2', self.image_zx)
     cv2.waitKey(1)
     # Publish the results
     try: 
       self.image_pub1.publish(self.bridge.cv2_to_imgmsg(self.image_zy, "bgr8"))
-      # self.robot_joint2_pub.publish(self.Joint2)
-      # self.robot_joint3_pub.publish(self.Joint3)
-      # self.robot_joint4_pub.publish(self.Joint4)
+      self.robot_joint2_pub.publish(self.Joint2)
+      self.robot_joint3_pub.publish(self.Joint3)
+      self.robot_joint4_pub.publish(self.Joint4)
+      self.target_joints_pub.publish(self.targetposs)
       self.robot_joints_pub.publish(self.joints)
     except CvBridgeError as e:
       print(e)
