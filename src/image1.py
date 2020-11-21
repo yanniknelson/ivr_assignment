@@ -15,10 +15,23 @@ class image_converter:
 
   # Defines publisher and subscriber
   def __init__(self):
-    target = cv2.imread('/home/yanniknelson/catkin_ws/targettmp.png', 1)
-    wall = cv2.imread('/home/yanniknelson/catkin_ws/walltmp.png', 1)
-    self.targettemp = cv2.inRange(target, (200, 200, 200), (255, 255, 255))
-    self.walltemp = cv2.inRange(wall, (200, 200, 200), (255, 255, 255))
+    target_zy = cv2.imread('/home/yanniknelson/catkin_ws/targettmp_zy.png', 1)
+    target_zx = cv2.imread('/home/yanniknelson/catkin_ws/targettmp_zx.png', 1)
+    wall_zy = cv2.imread('/home/yanniknelson/catkin_ws/walltmp_zy.png', 1)
+    wall_zx = cv2.imread('/home/yanniknelson/catkin_ws/walltmp_zx.png', 1)
+    self.targetzytemp = cv2.inRange(target_zy, (200, 200, 200), (255, 255, 255))
+    self.targetzxtemp = cv2.inRange(target_zx, (200, 200, 200), (255, 255, 255))
+    self.wallzytemp = cv2.inRange(wall_zy, (200, 200, 200), (255, 255, 255))
+    self.wallzxtemp = cv2.inRange(wall_zx, (200, 200, 200), (255, 255, 255))
+    self.targetzycont, _ = cv2.findContours(self.targetzytemp,2,1)
+    self.targetzxcont, _ = cv2.findContours(self.targetzxtemp,2,1)
+    self.wallzycont, _ = cv2.findContours(self.wallzytemp,2,1)
+    self.wallzxcont, _ = cv2.findContours(self.wallzxtemp,2,1)
+
+    # self.targetChamfer = cv2.distanceTransform(cv2.bitwise_not(self.targettemp),cv2.DIST_L2,0)
+    # self.wallzyChamfer = cv2.distanceTransform(cv2.bitwise_not(self.wallzytemp),cv2.DIST_L2,0)
+    # self.wallzxChamfer = cv2.distanceTransform(cv2.bitwise_not(self.wallzxtemp),cv2.DIST_L2,0)
+
     # initialize the node named image_processing
     rospy.init_node('image_processing', anonymous=True)
     # initialize a publisher to send images from camera1 to a topic named image_topic1
@@ -42,9 +55,6 @@ class image_converter:
     self.target_zs = []
     self.times = []
     self.elapsed_time = 0
-    
-    # self.targetChamfer = cv2.distanceTransform(cv2.bitwise_not(target),cv2.DIST_L2,0)
-    # self.wallChamfer = cv2.distanceTransform(cv2.bitwise_not(wall),cv2.DIST_L2,0)
 
   # Blob Detection From the Labs
   def detect_red_in_image(self,image):
@@ -154,39 +164,30 @@ class image_converter:
       mask = cv2.inRange(getattr(self, image), (0,52,100),(40,180,255))-yellow
       mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
 
+      temp = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
+      
+      cv2.imshow('o '+image, temp)
+
       # mask = cv2.distanceTransform(cv2.bitwise_not(mask),cv2.DIST_L2,0)
-
-      # targetbest = [0,0]
-      # wallbest = [0,0]
-
-      # targetbestsum = 0
-      # wallbestsum = 0
-
-      # targethalfwidth = self.targetChamfer.shape[1]//2
-      # targethalfheight = self.targetChamfer.shape[0]//2
-      # wallhalfwidth = self.wallChamfer.shape[1]//2
-      # wallhalfheight = self.wallChamfer.shape[0]//2
-
-      # for i in range(targethalfwidth, mask.shape[1]-targethalfwidth): 
-      #   for j in range(targethalfheight, mask.shape[1]-targethalfheight):
-      #     area = mask[j-targethalfheight:j+targethalfheight,i-targethalfwidth:i+targethalfheight]
-      #     strength = np.sum(area*area)
-      #     if (strength > targetbestsum):
-      #       targetbestsum = strength
-      #       targetbest = [j,i]
-
-      res = cv2.matchTemplate(mask, self.targettemp, cv2.TM_SQDIFF_NORMED)
-      _, _, topLeft, _ = cv2.minMaxLoc(res)
-      targetCenter = topLeft + np.array([self.targettemp.shape[0]//2, self.targettemp.shape[1]//2])
-      # temp = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
-      # temp[targetCenter[1], targetCenter[0]] = [0,0,255]
-
-      res = cv2.matchTemplate(mask, self.walltemp, cv2.TM_SQDIFF_NORMED)
-      _, _, topLeft, _ = cv2.minMaxLoc(res)
-      wallCenter = topLeft + np.array([self.walltemp.shape[0]//2, self.walltemp.shape[1]//2])
-      # temp[wallCenter[1], wallCenter[0]] = [0,0,255]
-      # cv2.imshow('o '+image, temp)
-      return np.array(targetCenter)
+      contours, hierarchy = cv2.findContours(mask,2,1)
+      for c in range(1,len(contours)):
+        
+        if (image == "iamge_zy"):
+          targetret = cv2.matchShapes(contours[c],self.targetzycont[0],1,0.0)
+          wallret = cv2.matchShapes(contours[c],self.wallzycont[0],1,0.0)
+        else:
+          targetret = cv2.matchShapes(contours[c],self.targetzxcont[0],1,0.0)
+          wallret = cv2.matchShapes(contours[c],self.wallzxcont[0],1,0.0)
+        m = cv2.moments(contours[c])
+        x = int(m['m10']/m['m00'])
+        y = int(m['m01']/m['m00'])
+        if (targetret < wallret):
+            # temp[y,x] = [0,0,255]
+            return np.array([x,y])
+      if (image == 'image_zx'):
+          return self.target_zx
+      else:
+          return self.target_zy
 
   # Calculate the conversion from pixel to meter
   def pixel2meter(self,plane):
@@ -257,7 +258,7 @@ class image_converter:
       jointposzx = self.target_zx
     z_zy = (self.yellow_zy - jointposzy)[1] * self.scale_zy
     z_zx = (self.yellow_zx - jointposzx)[1] * self.scale_zy
-    return (z_zy + z_zx)/2
+    return 1 + (z_zy + z_zx)/2
 
   def detect_position_in_world(self, Joint):
     x = self.get_x(Joint)
@@ -323,50 +324,28 @@ class image_converter:
     self.red_pos = self.detect_position_in_world(5)
     self.target_pos = self.detect_position_in_world('target')
 
-    # if (self.elapsed_time > 5):
-    #   plt.plot(self.times, self.target_xs)
-    #   plt.show()
-    # else:
-    #   self.times.append(self.elapsed_time)
-    #   self.target_xs.append(self.target_pos[0])
-    #   self.target_ys.append(self.target_pos[1])
-    #   self.target_zs.append(self.target_pos[2])
+    # self.target_pos[2] = self.target_pos[2] + (1/self.target_pos[2])
 
-    self.targetposs= Float64MultiArray()
+    self.targetposs = Float64MultiArray()
     self.targetposs.data = self.target_pos
 
-    self.link3 = self.green_pos-self.blue_pos
+    self.link3 = self.green_pos-np.array([0,0,2.5])
     self.link4 = self.red_pos-self.green_pos
-    
-    # m3 = np.arcsin(self.link3[0]/-3.5) 
 
     print(self.link3)
-    
-    # m3 = np.arcsin(self.green_pos[1]/(-3.5))
-    # m2 = self.angleToPlane(self.link3, np.array([0,-1,0]))/np.cos(m3)
-    
 
     m3 = self.angleToPlane(self.link3,np.array([1, 0, 0]))
+    # self.link3[2] = self.link3[2]+1/(self.getLength(self.link3[:2]))
     self.link3[2] = max(self.link3[2], 0)
     m2 =(-np.arctan((self.link3[1])/(self.link3[2])))
-
-    self.link3[2] = max(self.link3[2], 0)
-
-    m3 = self.angleToPlane(self.link3,np.array([1, 0, 0]))
-    
-    # m2 = -np.arctan2(self.link3[1], self.link3[2])
-    # m2 = self.angleBetweenVecs(self.link3, link3zy)
-    # m2 = self.angleBetweenVecs(link3zy, np.array([0,0,1]))
-    # m2 = self.angleBetweenVecs(link3zy, self.blue_pos-self.yellow_pos)
     m4 = self.angleBetweenVecs(self.link3, self.link4)
-    # test = self.getLength(np.cross(self.link3, self.link4))/(self.getLength(self.link3)* self.getLength(self.link4))
-    # m4 = np.arcsin(test)
+
     j2, j3, j4 = self.trajectory()
     print("expected")
     print(j2, j3, j4)
     print("measured")
     print(m2, m3, m4)
-    print(self.link3[2])
+    
 
     self.MeasuredJoint2 = Float64()
     self.MeasuredJoint2.data = m2
@@ -375,12 +354,8 @@ class image_converter:
     self.MeasuredJoint4 = Float64()
     self.MeasuredJoint4.data = m4
 
-    j = [m2,m3,m4]
-
-    # print(np.sum(np.array(t)-np.array(j))**2/3)
-
     self.joints = Float64MultiArray()
-    self.joints.data = j
+    self.joints.data = [m2,m3,m4]
 
     self.Joint2 = Float64()
     self.Joint2.data = j2
@@ -393,7 +368,9 @@ class image_converter:
     self.image_zx[self.blue_zx[1], self.blue_zx[0]] = [255,255,255]
     self.image_zx[self.yellow_zx[1], self.yellow_zx[0]] = [255,255,255]
     self.image_zx[self.green_zx[1], self.green_zx[0]] = [255,255,255]
+    self.image_zx[self.target_zx[1], self.target_zx[0]] = [255,255,255]
 
+    self.image_zy[self.target_zy[1], self.target_zy[0]] = [255,255,255]
     self.image_zy[self.red_zy[1], self.red_zy[0]] = [255,255,255]
     self.image_zy[self.blue_zy[1], self.blue_zy[0]] = [255,255,255]
     self.image_zy[self.yellow_zy[1], self.yellow_zy[0]] = [255,255,255]
