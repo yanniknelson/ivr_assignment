@@ -189,6 +189,20 @@ class image_converter:
       else:
           return self.target_zy
 
+  def invkin(self,t1, t2, t3, t4):
+    st1 = np.sin(t1)
+    ct1 = np.cos(t1)
+    st2 = np.sin(t2)
+    ct2 = np.cos(t2)
+    st3 = np.sin(t3)
+    ct3 = np.cos(t3)
+    st4 = np.sin(t4)
+    ct4 = np.cos(t4)
+    x = 3*(st1*st2*ct3 + st3*ct1)*ct4 + 3.5*st1*st2*ct3 + 3*st1*st4*ct2 + 3.5*st3*ct1
+    y = 3*(st1*st3 - st2*ct1*ct3)*ct4 + 3.5*st1*st3 - 3.5*st2*ct1*ct3 - 3*st4*ct1*ct2
+    z = -3*st2*st4 + 3*ct2*ct3*ct4 + 3.5*ct2*ct3 + 2.5
+    return np.array([x,y,z])
+
   # Calculate the conversion from pixel to meter
   def pixel2meter(self,plane):
       # Obtain the centre of each coloured blob
@@ -258,7 +272,7 @@ class image_converter:
       jointposzx = self.target_zx
     z_zy = (self.yellow_zy - jointposzy)[1] * self.scale_zy
     z_zx = (self.yellow_zx - jointposzx)[1] * self.scale_zy
-    return 1 + (z_zy + z_zx)/2
+    return (z_zy + z_zx)/2
 
   def detect_position_in_world(self, Joint):
     x = self.get_x(Joint)
@@ -289,21 +303,7 @@ class image_converter:
     Joint4 = float((np.pi/3)*np.sin((np.pi/20)*cur_time))
     return Joint2, Joint3, Joint4
 
-  # Recieve data from camera 1, process it, and publish
-  def callback1(self,data):
-    # Recieve the image
-    try:
-      self.image_zy = self.bridge.imgmsg_to_cv2(data, "bgr8")
-    except CvBridgeError as e:
-      print(e)
-    
-    self.image_zy = cv2.GaussianBlur(self.image_zy, (5,5),0)
-
-    # Uncomment if you want to save the image
-    #cv2.imwrite('image_copy.png', cv_image)
-    self.elapsed_time = rospy.get_time() - self.start_time
-    
-
+  def get_data_from_images(self):
     self.red_zx = self.detect_red_in_image("image_zx")
     self.red_zy = self.detect_red_in_image("image_zy")
     self.blue_zx = self.detect_blue_in_image("image_zx")
@@ -316,54 +316,25 @@ class image_converter:
     self.target_zy = self.detect_orange_in_image("image_zy")
 
     self.scale_zy = self.pixel2meter('zy')
-    self.scale_zx = self.pixel2meter('zx')
+    self.scale_zx = self.pixel2meter('zx')\
 
+  def get_Joint_world_positions(self):
     self.yellow_pos = self.detect_position_in_world(1)
     self.blue_pos = self.detect_position_in_world(2)
     self.green_pos = self.detect_position_in_world(4)
     self.red_pos = self.detect_position_in_world(5)
     self.target_pos = self.detect_position_in_world('target')
-
-    # self.target_pos[2] = self.target_pos[2] + (1/self.target_pos[2])
-
-    self.targetposs = Float64MultiArray()
-    self.targetposs.data = self.target_pos
-
     self.link3 = self.green_pos-np.array([0,0,2.5])
     self.link4 = self.red_pos-self.green_pos
 
-    print(self.link3)
-
+  def predict_Joint_angles(self):
     m3 = self.angleToPlane(self.link3,np.array([1, 0, 0]))
-    # self.link3[2] = self.link3[2]+1/(self.getLength(self.link3[:2]))
     self.link3[2] = max(self.link3[2], 0)
     m2 =(-np.arctan((self.link3[1])/(self.link3[2])))
     m4 = self.angleBetweenVecs(self.link3, self.link4)
+    return np.array([m2,m3,m4])
 
-    j2, j3, j4 = self.trajectory()
-    print("expected")
-    print(j2, j3, j4)
-    print("measured")
-    print(m2, m3, m4)
-    
-
-    self.MeasuredJoint2 = Float64()
-    self.MeasuredJoint2.data = m2
-    self.MeasuredJoint3 = Float64()
-    self.MeasuredJoint3.data = m3
-    self.MeasuredJoint4 = Float64()
-    self.MeasuredJoint4.data = m4
-
-    self.joints = Float64MultiArray()
-    self.joints.data = [m2,m3,m4]
-
-    self.Joint2 = Float64()
-    self.Joint2.data = j2
-    self.Joint3 = Float64()
-    self.Joint3.data = j3
-    self.Joint4 = Float64()
-    self.Joint4.data = j4
-
+  def draw_centers_on_images(self):
     self.image_zx[self.red_zx[1], self.red_zx[0]] = [255,255,255]
     self.image_zx[self.blue_zx[1], self.blue_zx[0]] = [255,255,255]
     self.image_zx[self.yellow_zx[1], self.yellow_zx[0]] = [255,255,255]
@@ -375,18 +346,54 @@ class image_converter:
     self.image_zy[self.blue_zy[1], self.blue_zy[0]] = [255,255,255]
     self.image_zy[self.yellow_zy[1], self.yellow_zy[0]] = [255,255,255]
     self.image_zy[self.green_zy[1], self.green_zy[0]] = [255,255,255]
+  
+  # Recieve data from camera 1, process it, and publish
+  def callback1(self,data):
+    # Recieve the image
+    try:
+      self.image_zy = self.bridge.imgmsg_to_cv2(data, "bgr8")
+    except CvBridgeError as e:
+      print(e)
+    
+    self.image_zy = cv2.GaussianBlur(self.image_zy, (5,5),0)
 
-    im1 = cv2.imshow('window1', self.image_zy)
-    im2 = cv2.imshow('window2', self.image_zx)
+    self.elapsed_time = rospy.get_time() - self.start_time
+    
+    self.get_data_from_images()
+    self.get_Joint_world_positions()
+
+    self.targetposs = Float64MultiArray()
+    self.targetposs.data = self.target_pos
+    self.target_joints_pub.publish(self.targetposs)
+
+    j2, j3, j4 = self.trajectory()
+    # print("expected")
+    # print(j2, j3, j4)
+
+    self.joints = Float64MultiArray()
+    self.joints.data = self.predict_Joint_angles()
+    self.robot_joints_pub.publish(self.joints)
+    print("measured")
+    print(self.joints.data)
+
+    self.Joint2 = Float64()
+    self.Joint2.data = j2
+    self.robot_joint2_pub.publish(self.Joint2)
+    self.Joint3 = Float64()
+    self.Joint3.data = j3
+    self.robot_joint3_pub.publish(self.Joint3)
+    self.Joint4 = Float64()
+    self.Joint4.data = j4
+    self.robot_joint4_pub.publish(self.Joint4)
+
+    self.draw_centers_on_images()
+
+    im1 = cv2.imshow('window1_zy', self.image_zy)
+    im2 = cv2.imshow('window2_zx', self.image_zx)
     cv2.waitKey(1)
     # Publish the results
     try: 
       self.image_pub1.publish(self.bridge.cv2_to_imgmsg(self.image_zy, "bgr8"))
-      self.robot_joint2_pub.publish(self.Joint2)
-      self.robot_joint3_pub.publish(self.Joint3)
-      self.robot_joint4_pub.publish(self.Joint4)
-      self.target_joints_pub.publish(self.targetposs)
-      self.robot_joints_pub.publish(self.joints)
     except CvBridgeError as e:
       print(e)
 
