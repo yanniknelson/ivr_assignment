@@ -5,6 +5,7 @@ import sys
 import rospy
 import cv2
 import numpy as np
+import os
 import matplotlib.pyplot as plt
 from std_msgs.msg import String
 from sensor_msgs.msg import Image
@@ -15,10 +16,10 @@ class image_converter:
 
   # Defines publisher and subscriber
   def __init__(self):
-    target_zy = cv2.imread('/home/yanniknelson/catkin_ws/targettmp_zy.png', 1)
-    target_zx = cv2.imread('/home/yanniknelson/catkin_ws/targettmp_zx.png', 1)
-    wall_zy = cv2.imread('/home/yanniknelson/catkin_ws/walltmp_zy.png', 1)
-    wall_zx = cv2.imread('/home/yanniknelson/catkin_ws/walltmp_zx.png', 1)
+    target_zy = cv2.imread(os.path.dirname(sys.argv[0])+'/targettmp_zy.png', 1)
+    target_zx = cv2.imread(os.path.dirname(sys.argv[0])+'/targettmp_zx.png', 1)
+    wall_zy = cv2.imread(os.path.dirname(sys.argv[0])+'/walltmp_zy.png', 1)
+    wall_zx = cv2.imread(os.path.dirname(sys.argv[0])+'/walltmp_zx.png', 1)
     self.targetzytemp = cv2.inRange(target_zy, (200, 200, 200), (255, 255, 255))
     self.targetzxtemp = cv2.inRange(target_zx, (200, 200, 200), (255, 255, 255))
     self.wallzytemp = cv2.inRange(wall_zy, (200, 200, 200), (255, 255, 255))
@@ -27,6 +28,11 @@ class image_converter:
     self.targetzxcont, _ = cv2.findContours(self.targetzxtemp,2,1)
     self.wallzycont, _ = cv2.findContours(self.wallzytemp,2,1)
     self.wallzxcont, _ = cv2.findContours(self.wallzxtemp,2,1)
+    self.scale_zx = 0
+    self.scale_zy = 0
+    self.scale_xy = 0.038461538461538464
+    self.scale_z = 0.04269918660532219
+
 
     # self.targetChamfer = cv2.distanceTransform(cv2.bitwise_not(self.targettemp),cv2.DIST_L2,0)
     # self.wallzyChamfer = cv2.distanceTransform(cv2.bitwise_not(self.wallzytemp),cv2.DIST_L2,0)
@@ -163,14 +169,18 @@ class image_converter:
       yellow = cv2.morphologyEx(yellow, cv2.MORPH_OPEN, kernel)
       mask = cv2.inRange(getattr(self, image), (0,52,100),(40,180,255))-yellow
       mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+      mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
 
       temp = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
       
-      cv2.imshow('o '+image, temp)
+      
 
       # mask = cv2.distanceTransform(cv2.bitwise_not(mask),cv2.DIST_L2,0)
       contours, hierarchy = cv2.findContours(mask,2,1)
-      for c in range(1,len(contours)):
+      print(len(contours))
+      scores = []
+      centers = []
+      for c in range(0,len(contours)):
         
         if (image == "iamge_zy"):
           targetret = cv2.matchShapes(contours[c],self.targetzycont[0],1,0.0)
@@ -182,8 +192,18 @@ class image_converter:
         x = int(m['m10']/m['m00'])
         y = int(m['m01']/m['m00'])
         if (targetret < wallret):
-            # temp[y,x] = [0,0,255]
-            return np.array([x,y])
+            
+            print(image, targetret)
+            scores.append(targetret)
+            centers.append(np.array([x,y]))
+      if (len(scores)>=1):
+        scind = np.argmin(scores)
+        if (scores[scind]< 0.1):
+          cent = centers[scind]
+          temp[cent[1]-3:cent[1]+3,cent[0]-3:cent[0]+3] = [0,0,255]
+          cv2.imshow('o '+image, temp)
+          return cent
+      
       if (image == 'image_zx'):
           return self.target_zx
       else:
@@ -231,7 +251,7 @@ class image_converter:
     elif (Joint == 'target'):
       jointpos = self.target_zx
     vec = jointpos - self.yellow_zx
-    return self.scale_zx * vec[0]
+    return self.scale_xy * vec[0]
 
   def get_y(self, Joint):
     jointpos = None
@@ -248,7 +268,7 @@ class image_converter:
     elif (Joint == 'target'):
       jointpos = self.target_zy
     vec = jointpos - self.yellow_zy
-    return self.scale_zy * vec[0]
+    return self.scale_xy * vec[0]
 
   def get_z(self, Joint):
     jointpos = None
@@ -270,8 +290,8 @@ class image_converter:
     elif (Joint == 'target'):
       jointposzy = self.target_zy
       jointposzx = self.target_zx
-    z_zy = (self.yellow_zy - jointposzy)[1] * self.scale_zy
-    z_zx = (self.yellow_zx - jointposzx)[1] * self.scale_zy
+    z_zy = (self.yellow_zy - jointposzy)[1] * self.scale_z  
+    z_zx = (self.yellow_zx - jointposzx)[1] * self.scale_z
     return (z_zy + z_zx)/2
 
   def detect_position_in_world(self, Joint):
@@ -315,8 +335,8 @@ class image_converter:
     self.target_zx = self.detect_orange_in_image("image_zx")
     self.target_zy = self.detect_orange_in_image("image_zy")
 
-    self.scale_zy = self.pixel2meter('zy')
-    self.scale_zx = self.pixel2meter('zx')\
+    # self.scale_zy = self.pixel2meter('zy')
+    # self.scale_zx = self.pixel2meter('zx')
 
   def get_Joint_world_positions(self):
     self.yellow_pos = self.detect_position_in_world(1)
@@ -355,7 +375,7 @@ class image_converter:
     except CvBridgeError as e:
       print(e)
     
-    self.image_zy = cv2.GaussianBlur(self.image_zy, (5,5),0)
+    # self.image_zy = cv2.GaussianBlur(self.image_zy, (5,5),0)
 
     self.elapsed_time = rospy.get_time() - self.start_time
     
@@ -366,9 +386,12 @@ class image_converter:
     self.targetposs.data = self.target_pos
     self.target_joints_pub.publish(self.targetposs)
 
+
+    # print('measured', self.red_pos)
+    # print('predicted', self.invkin(0,0.1,0.1,0))
     j2, j3, j4 = self.trajectory()
-    # print("expected")
-    # print(j2, j3, j4)
+    print("expected")
+    print(j2, j3, j4)
 
     self.joints = Float64MultiArray()
     self.joints.data = self.predict_Joint_angles()
@@ -378,12 +401,15 @@ class image_converter:
 
     self.Joint2 = Float64()
     self.Joint2.data = j2
+    # self.Joint2.data = 0.1
     self.robot_joint2_pub.publish(self.Joint2)
     self.Joint3 = Float64()
     self.Joint3.data = j3
+    # self.Joint3.data = 0.1
     self.robot_joint3_pub.publish(self.Joint3)
     self.Joint4 = Float64()
     self.Joint4.data = j4
+    # self.Joint4.data = 0
     self.robot_joint4_pub.publish(self.Joint4)
 
     self.draw_centers_on_images()
@@ -402,7 +428,7 @@ class image_converter:
     # Recieve the image
     try:
       self.image_zx = self.bridge.imgmsg_to_cv2(data, "bgr8")
-      self.image_zx = cv2.GaussianBlur(self.image_zx, (5,5),0)
+      # self.image_zx = cv2.GaussianBlur(self.image_zx, (5,5),0)
     except CvBridgeError as e:
       print(e)
 
