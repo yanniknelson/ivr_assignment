@@ -419,9 +419,9 @@ class image_converter:
 
   def control_closed(self):
     # P gain
-    K_p = np.array([[20 ,0,0],[0,20,0],[0,0,15]])
+    K_p = np.array([[20 ,0,0],[0,20,0],[0,0,20]])
     # D gain
-    K_d = np.array([[0.2,0,0],[0,0.2,0],[0,0,0.2]])
+    K_d = np.array([[0.1,0,0],[0,0.1,0],[0,0,0.1]])
     # estimate time step
     cur_time = np.array([rospy.get_time()])
     dt = cur_time - self.time_previous_step
