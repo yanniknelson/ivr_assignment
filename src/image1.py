@@ -54,6 +54,7 @@ class image_converter:
     self.robot_joint2_pub = rospy.Publisher("/robot/joint2_position_controller/command", Float64, queue_size=10)
     self.robot_joint3_pub = rospy.Publisher("/robot/joint3_position_controller/command", Float64, queue_size=10)
     self.robot_joint4_pub = rospy.Publisher("/robot/joint4_position_controller/command", Float64, queue_size=10)
+    self.robot_endeffec_pub = rospy.Publisher("/robot/end-effector", Float64MultiArray, queue_size=10)
     self.robot_joints_pub = rospy.Publisher("/robot/joint_states", Float64MultiArray, queue_size=10)
     self.target_joints_pub = rospy.Publisher("/target/joint_states", Float64MultiArray, queue_size=10)
     self.start_time = rospy.get_time()
@@ -177,9 +178,6 @@ class image_converter:
       mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
 
       # temp = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
-      
-      
-
       # mask = cv2.distanceTransform(cv2.bitwise_not(mask),cv2.DIST_L2,0)
       contours, hierarchy = cv2.findContours(mask,2,1)
       print(len(contours))
@@ -197,7 +195,6 @@ class image_converter:
         x = int(m['m10']/m['m00'])
         y = int(m['m01']/m['m00'])
         if (targetret < wallret):
-            
             print(image, targetret)
             scores.append(targetret)
             centers.append(np.array([x,y]))
@@ -362,7 +359,7 @@ class image_converter:
     self.link3[2] = max(self.link3[2], 0)
     m2 =(-np.arctan((self.link3[1])/(self.link3[2])))
     rot = np.array([[np.cos(m3), 0,np.sin(m3)],[0,1,0],[-np.sin(m3),0,np.cos(m3)]]) 
-    # m2 = self.angleBetweenVecs(self.blue_pos - self.last_blue, np.array([0,0,1]))
+    m2 = self.angleBetweenVecs(self.blue_pos - np.array([0,0,2.5]), np.array([0,0,1]))
     # m2 = np.arctan2(self.link3[2], self.link3[1])
     # m2 = self.angleToPlane(self.link3, np.dot(rot, np.array([0,-1,0])))
     
@@ -422,9 +419,9 @@ class image_converter:
 
   def control_closed(self):
     # P gain
-    K_p = np.array([[10,0,0],[0,10,0],[0,0,10]])
+    K_p = np.array([[20 ,0,0],[0,20,0],[0,0,15]])
     # D gain
-    K_d = np.array([[0.1,0,0],[0,0.1,0],[0,0,0.1]])
+    K_d = np.array([[0.2,0,0],[0,0.2,0],[0,0,0.2]])
     # estimate time step
     cur_time = np.array([rospy.get_time()])
     dt = cur_time - self.time_previous_step
@@ -465,16 +462,20 @@ class image_converter:
     self.targetposs.data = self.target_pos
     self.target_joints_pub.publish(self.targetposs)
 
+    self.endeffect = Float64MultiArray()
+    self.endeffect.data = self.red_pos
+    self.robot_endeffec_pub.publish(self.endeffect)
+
 
     # print('measured', self.red_pos)
     # print('predicted', self.invkin(0,0.1,0.1,0))
     j2, j3, j4 = self.trajectory()
-    # joints = self.control_closed()
-    # j2 = joints[0]
-    # j3 = joints[1]
-    # j4 = joints[2]
-    # print("expected")
-    # print(j2, j3, j4)
+    joints = self.control_closed()
+    j2 = joints[0]
+    j3 = joints[1]
+    j4 = joints[2]
+    print("expected")
+    print(j2, j3, j4)
 
     self.joints = Float64MultiArray()
     self.joints.data = self.predict_Joint_angles()
@@ -485,15 +486,16 @@ class image_converter:
     self.Joint2 = Float64()
     self.Joint2.data = j2 
     # self.Joint2.data = 0.0
-    # self.robot_joint2_pub.publish(self.Joint2)
+    self.robot_joint2_pub.publish(self.Joint2)
     self.Joint3 = Float64()
     self.Joint3.data = j3
     # self.Joint3.data = 1.5
-    # self.robot_joint3_pub.publish(self.Joint3)
+    self.robot_joint3_pub.publish(self.Joint3)
     self.Joint4 = Float64()
     self.Joint4.data = j4
     # self.Joint4.data = 0
-    # self.robot_joint4_pub.publish(self.Joint4)
+    self.robot_joint4_pub.publish(self.Joint4)
+    
 
     self.draw_centers_on_images()
 
