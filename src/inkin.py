@@ -13,4 +13,4 @@ def invkin(t1, t2, t3, t4):
     z = -3*st2*st4 + 3*ct2*ct3*ct4 + 3.5*ct2*ct3 + 2.5
     return np.array([x,y,z])
 
-print(invkin(0, 1.5, 1.5, 0))
+print(invkin(0, 0.5, 1.0, 0))

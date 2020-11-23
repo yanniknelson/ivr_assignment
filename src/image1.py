@@ -256,7 +256,7 @@ class image_converter:
     elif (Joint == 'target'):
       jointpos = self.target_zx
     vec = jointpos - self.yellow_zx
-    return self.scale_xy * vec[0]
+    return self.scale_zx * vec[0]
 
   def get_y(self, Joint):
     jointpos = None
@@ -273,7 +273,7 @@ class image_converter:
     elif (Joint == 'target'):
       jointpos = self.target_zy
     vec = jointpos - self.yellow_zy
-    return self.scale_xy * vec[0]
+    return self.scale_zy * vec[0]
 
   def get_z(self, Joint):
     jointpos = None
@@ -295,8 +295,8 @@ class image_converter:
     elif (Joint == 'target'):
       jointposzy = self.target_zy
       jointposzx = self.target_zx
-    z_zy = (self.yellow_zy - jointposzy)[1] * self.scale_z  
-    z_zx = (self.yellow_zx - jointposzx)[1] * self.scale_z
+    z_zy = (self.yellow_zy - jointposzy)[1] * self.scale_zy  
+    z_zx = (self.yellow_zx - jointposzx)[1] * self.scale_zx
     return (z_zy + z_zx)/2 #min(z_zy, z_zx)
 
   def detect_position_in_world(self, Joint):
@@ -306,8 +306,8 @@ class image_converter:
     return np.array([x,y,z])
 
   def getLength(self, vec):
-    return np.sqrt(np.sum(vec**2))
-    
+    return np.linalg.norm(vec)
+
   def angleBetweenVecs(self, a, b):
     return np.arccos(np.dot(a,b)/(self.getLength(a)*self.getLength(b)))
 
@@ -319,17 +319,6 @@ class image_converter:
 
   def angleToPlane(self, vec, norm):
     return (np.pi/2)-self.angleBetweenVecs(vec, norm)
-
-#   def butter_lowpass(cutoff, fs, order=5):
-#     nyq = 0.5 * fs
-#     normal_cutoff = cutoff / nyq
-#     b, a = butter(order, normal_cutoff, btype='low', analog=False)
-#     return b, a
-
-# def butter_lowpass_filter(data, cutoff, fs, order=5):
-#     b, a = butter_lowpass(cutoff, fs, order=order)
-#     y = lfilter(b, a, data)
-#     return y
 
   def trajectory(self):
     # get current time
@@ -351,14 +340,19 @@ class image_converter:
     self.target_zx = self.detect_orange_in_image("image_zx")
     self.target_zy = self.detect_orange_in_image("image_zy")
 
-    # self.scale_zy = self.pixel2meter('zy')
-    # self.scale_zx = self.pixel2meter('zx')
+    if (self.scale_zx == 0):
+      self.scale_zy = self.pixel2meter('zy')
+      self.scale_zx = self.pixel2meter('zx')
 
   def get_Joint_world_positions(self):
     self.yellow_pos = self.detect_position_in_world(1)
     self.blue_pos = self.detect_position_in_world(2)
     self.green_pos = self.detect_position_in_world(4)
     self.red_pos = self.detect_position_in_world(5)
+    print('yellow',self.yellow_pos)
+    print('blue',self.blue_pos)
+    print('green',self.green_pos)
+    print('red',self.red_pos)
     self.target_pos = self.detect_position_in_world('target')
     self.link3 = self.green_pos-np.array([0,0,2.5])
     self.link4 = self.red_pos-self.green_pos
@@ -368,15 +362,33 @@ class image_converter:
     self.link3[2] = max(self.link3[2], 0)
     m2 =(-np.arctan((self.link3[1])/(self.link3[2])))
     rot = np.array([[np.cos(m3), 0,np.sin(m3)],[0,1,0],[-np.sin(m3),0,np.cos(m3)]]) 
-    m2 = self.angleBetweenVecs(self.blue_pos - self.last_blue, np.array([0,0,1]))
+    # m2 = self.angleBetweenVecs(self.blue_pos - self.last_blue, np.array([0,0,1]))
     # m2 = np.arctan2(self.link3[2], self.link3[1])
     # m2 = self.angleToPlane(self.link3, np.dot(rot, np.array([0,-1,0])))
+    
     if (self.green_pos[1] > 0):
       m2 *= -1
 
-    m2 = np.arccos(self.green_pos[1]/(-3.5*np.cos(m3)))
+
+    link3proj = self.projToPlane(self.link3,np.array([0,1,0]))
+    print(link3proj)
+    # m2 = self.angleBetweenVecs(np.array([0,0,1]), self.link3)
+
 
     m4 = self.angleBetweenVecs(self.link3, self.link4)
+    if (self.green_pos[1] > 0):
+      if (self.red_pos[2]< self.green_pos[2]):
+        m4 *= -1
+    else:
+      if (self.red_pos[2]>self.green_pos[2]):
+        m4 *= -1
+
+    # m2 = np.arccos(self.green_pos[1]/(-3.5*np.cos(m3)))
+    # proj = self.projToPlane(self.link3,np.array([1,0,0]))
+    # print(proj)
+    # m2 = self.angleBetweenVecs(np.array([0,0,1]), proj)
+
+    
     # print((self.link4[0]/3)/np.sin(m3))
     # m4 = np.arccos(((self.red_pos[0] - 3.5*np.sin(m3))/3)/np.sin(m3))
     return np.array([m2,m3,m4])
@@ -461,8 +473,8 @@ class image_converter:
     # j2 = joints[0]
     # j3 = joints[1]
     # j4 = joints[2]
-    print("expected")
-    print(j2, j3, j4)
+    # print("expected")
+    # print(j2, j3, j4)
 
     self.joints = Float64MultiArray()
     self.joints.data = self.predict_Joint_angles()
@@ -471,17 +483,17 @@ class image_converter:
     print(self.joints.data)
 
     self.Joint2 = Float64()
-    self.Joint2.data = j2
-    # self.Joint2.data = 0.1
-    self.robot_joint2_pub.publish(self.Joint2)
+    self.Joint2.data = j2 
+    # self.Joint2.data = 0.0
+    # self.robot_joint2_pub.publish(self.Joint2)
     self.Joint3 = Float64()
     self.Joint3.data = j3
-    # self.Joint3.data = 0.0
-    self.robot_joint3_pub.publish(self.Joint3)
+    # self.Joint3.data = 1.5
+    # self.robot_joint3_pub.publish(self.Joint3)
     self.Joint4 = Float64()
     self.Joint4.data = j4
     # self.Joint4.data = 0
-    self.robot_joint4_pub.publish(self.Joint4)
+    # self.robot_joint4_pub.publish(self.Joint4)
 
     self.draw_centers_on_images()
 
