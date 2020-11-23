@@ -12,6 +12,7 @@ from sensor_msgs.msg import Image
 from std_msgs.msg import Float64MultiArray, Float64
 from cv_bridge import CvBridge, CvBridgeError
 
+
 class image_converter:
 
   # Defines publisher and subscriber
@@ -32,6 +33,8 @@ class image_converter:
     self.scale_zy = 0
     self.scale_xy = 0.038461538461538464
     self.scale_z = 0.04269918660532219
+    self.last_blue = np.array([0,0,2.5])
+    
 
 
     # self.targetChamfer = cv2.distanceTransform(cv2.bitwise_not(self.targettemp),cv2.DIST_L2,0)
@@ -54,6 +57,8 @@ class image_converter:
     self.robot_joints_pub = rospy.Publisher("/robot/joint_states", Float64MultiArray, queue_size=10)
     self.target_joints_pub = rospy.Publisher("/target/joint_states", Float64MultiArray, queue_size=10)
     self.start_time = rospy.get_time()
+    self.time_previous_step = rospy.get_time()
+    self.error = np.array([0,0,0])
     # initialize the bridge between openCV and ROS
     self.bridge = CvBridge()
     self.target_xs = []
@@ -171,7 +176,7 @@ class image_converter:
       mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
       mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
 
-      temp = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
+      # temp = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
       
       
 
@@ -200,8 +205,8 @@ class image_converter:
         scind = np.argmin(scores)
         if (scores[scind]< 0.1):
           cent = centers[scind]
-          temp[cent[1]-3:cent[1]+3,cent[0]-3:cent[0]+3] = [0,0,255]
-          cv2.imshow('o '+image, temp)
+          # temp[cent[1]-3:cent[1]+3,cent[0]-3:cent[0]+3] = [0,0,255]
+          # cv2.imshow('o '+image, temp)
           return cent
       
       if (image == 'image_zx'):
@@ -292,7 +297,7 @@ class image_converter:
       jointposzx = self.target_zx
     z_zy = (self.yellow_zy - jointposzy)[1] * self.scale_z  
     z_zx = (self.yellow_zx - jointposzx)[1] * self.scale_z
-    return (z_zy + z_zx)/2
+    return (z_zy + z_zx)/2 #min(z_zy, z_zx)
 
   def detect_position_in_world(self, Joint):
     x = self.get_x(Joint)
@@ -314,6 +319,17 @@ class image_converter:
 
   def angleToPlane(self, vec, norm):
     return (np.pi/2)-self.angleBetweenVecs(vec, norm)
+
+#   def butter_lowpass(cutoff, fs, order=5):
+#     nyq = 0.5 * fs
+#     normal_cutoff = cutoff / nyq
+#     b, a = butter(order, normal_cutoff, btype='low', analog=False)
+#     return b, a
+
+# def butter_lowpass_filter(data, cutoff, fs, order=5):
+#     b, a = butter_lowpass(cutoff, fs, order=order)
+#     y = lfilter(b, a, data)
+#     return y
 
   def trajectory(self):
     # get current time
@@ -351,6 +367,12 @@ class image_converter:
     m3 = self.angleToPlane(self.link3,np.array([1, 0, 0]))
     self.link3[2] = max(self.link3[2], 0)
     m2 =(-np.arctan((self.link3[1])/(self.link3[2])))
+    rot = np.array([[np.cos(m3), 0,np.sin(m3)],[0,1,0],[-np.sin(m3),0,np.cos(m3)]]) 
+    m2 = self.angleBetweenVecs(self.blue_pos - self.last_blue, np.array([0,0,1]))
+    # m2 = self.angleToPlane(self.link3, np.dot(rot, np.array([0,-1,0])))
+    if (self.green_pos[1] > 0):
+      m2 *= -1
+
     m4 = self.angleBetweenVecs(self.link3, self.link4)
     return np.array([m2,m3,m4])
 
@@ -367,6 +389,46 @@ class image_converter:
     self.image_zy[self.yellow_zy[1], self.yellow_zy[0]] = [255,255,255]
     self.image_zy[self.green_zy[1], self.green_zy[0]] = [255,255,255]
   
+  def calculate_jacobian(self, angles):
+    st1 = np.sin(0)
+    ct1 = np.cos(0)
+    st2 = np.sin(angles[0])
+    ct2 = np.cos(angles[0])
+    st3 = np.sin(angles[1])
+    ct3 = np.cos(angles[1])
+    st4 = np.sin(angles[2])
+    ct4 = np.cos(angles[2])
+    row1 = [0, 3*ct3*ct4+3.5*ct3, -3*st3*st4]
+    row2 = [3*st2*st4-3*ct2*ct3*ct4-3.5*ct2*ct3, 3*st2*st3*ct4+3.5*st2*st3, 3*st2*st4*ct3-3*ct2*ct4]
+    row3 = [-3*st2*ct3*ct4-3.5*st2*ct3-3*st4*ct2, -3*st3*ct2*ct4-3.5*st3*ct2, -3*st2*ct4-3*st4*ct2*ct3]
+    return np.array([row1, row2, row3])
+
+  def control_closed(self):
+    # P gain
+    K_p = np.array([[10,0,0],[0,10,0],[0,0,10]])
+    # D gain
+    K_d = np.array([[0.1,0,0],[0,0.1,0],[0,0,0.1]])
+    # estimate time step
+    cur_time = np.array([rospy.get_time()])
+    dt = cur_time - self.time_previous_step
+    self.time_previous_step = cur_time
+    # robot end-effector position
+    pos = self.red_pos
+    # desired trajectory
+    pos_d = self.target_pos
+    # estimate derivative of error
+    self.error_d = ((pos_d - pos) - self.error)/dt
+    # estimate error
+    self.error = pos_d-pos
+    q = self.predict_Joint_angles() # estimate initial value of joints'
+    J_inv = np.linalg.pinv(self.calculate_jacobian(q))  # calculating the psudeo inverse of Jacobian
+    t1 = np.dot(K_d,self.error_d.transpose())
+    t2 = np.dot(K_p,self.error.transpose())
+    t = ( t1 + t2 )
+    dq_d = np.dot(J_inv, t)  # control input (angular velocity of joints)
+    q_d = q + (dt * dq_d)  # control input (angular position of joints)
+    return q_d
+
   # Recieve data from camera 1, process it, and publish
   def callback1(self,data):
     # Recieve the image
@@ -389,7 +451,11 @@ class image_converter:
 
     # print('measured', self.red_pos)
     # print('predicted', self.invkin(0,0.1,0.1,0))
-    j2, j3, j4 = self.trajectory()
+    # j2, j3, j4 = self.trajectory()
+    joints = self.control_closed()
+    j2 = joints[0]
+    j3 = joints[1]
+    j4 = joints[2]
     print("expected")
     print(j2, j3, j4)
 
@@ -405,7 +471,7 @@ class image_converter:
     self.robot_joint2_pub.publish(self.Joint2)
     self.Joint3 = Float64()
     self.Joint3.data = j3
-    # self.Joint3.data = 0.1
+    # self.Joint3.data = 0.0
     self.robot_joint3_pub.publish(self.Joint3)
     self.Joint4 = Float64()
     self.Joint4.data = j4
