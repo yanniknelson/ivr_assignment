@@ -34,8 +34,17 @@ class image_converter:
     self.scale_xy = 0.038461538461538464
     self.scale_z = 0.04269918660532219
     self.last_blue = np.array([0,0,2.5])
-    
 
+    self.camera_zy_pos = np.array([18, 0, 6.25])
+    self.camera_zx_pos = np.array([0, -18, 6.25])
+    self.yellow_world_pos = np.array([0,0,0.35])
+    self.blue_world_pos = np.array([0,0,3])
+
+    self.camvecnorm =  np.array([-18,18])
+    self.virtualCameraDirection = self.camvecnorm / np.linalg.norm(self.camvecnorm)
+    self.virtualCameraDirection = np.array([self.virtualCameraDirection[0], self.virtualCameraDirection[1], 0])
+    self.zy_adjust = self.angleBetweenVecs(self.camvecnorm, np.array([-1,0]))
+    self.zx_adjust = self.angleBetweenVecs(self.camvecnorm, np.array([0, 1]))
 
     # self.targetChamfer = cv2.distanceTransform(cv2.bitwise_not(self.targettemp),cv2.DIST_L2,0)
     # self.wallzyChamfer = cv2.distanceTransform(cv2.bitwise_not(self.wallzytemp),cv2.DIST_L2,0)
@@ -111,6 +120,7 @@ class image_converter:
           M = self.lastGMomzy
       if (image == 'image_zx'):
           self.lastGMomzx = M
+          
       else:
         self.lastGMomzy = M
       cx = int(M['m10'] / M['m00'])
@@ -156,12 +166,16 @@ class image_converter:
           M = self.lastYMomzx
         else:
           M = self.lastYMomzy
-      if (image == 'image_zx'):
-          self.lastYMomzx = M
-      else:
-        self.lastYMomzy = M
       cx = int(M['m10'] / M['m00'])
       cy = int(M['m01'] / M['m00'])
+      if (image == 'image_zx'):
+        self.lastYMomzx = M
+        self.YelXanglezx = self.XangleToCamera('zx', cx)
+        self.YelYanglezx = self.YangleToCamera(cy)
+      else:
+        self.lastYMomzy = M
+        self.YelXanglezy = self.XangleToCamera('zy', cx)
+        self.YelYanglezy = self.YangleToCamera(cy)
       # temp = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
       # temp[cy, cx] = [0,0,255]
       # cv2.imshow('y '+image, temp)
@@ -182,7 +196,7 @@ class image_converter:
 
       # mask = cv2.distanceTransform(cv2.bitwise_not(mask),cv2.DIST_L2,0)
       contours, hierarchy = cv2.findContours(mask,2,1)
-      print(len(contours))
+      # print(len(contours))
       scores = []
       centers = []
       for c in range(0,len(contours)):
@@ -198,7 +212,7 @@ class image_converter:
         y = int(m['m01']/m['m00'])
         if (targetret < wallret):
             
-            print(image, targetret)
+            # print(image, targetret)
             scores.append(targetret)
             centers.append(np.array([x,y]))
       if (len(scores)>=1):
@@ -207,6 +221,16 @@ class image_converter:
           cent = centers[scind]
           # temp[cent[1]-3:cent[1]+3,cent[0]-3:cent[0]+3] = [0,0,255]
           # cv2.imshow('o '+image, temp)
+          if (image =='image_zx'):
+            # print('zx')
+            self.targetzxXangle = self.XangleToCamera('zx', cent[0])
+            # print(self.targetzxXangle)
+            self.targetzxYangle = self.YangleToCamera(cent[1])
+          else:
+            # print('zy')
+            self.targetzyXangle = self.XangleToCamera('zy', cent[0])
+            # print(self.targetzyXangle)
+            self.targetzyYangle = self.YangleToCamera(cent[1])
           return cent
       
       if (image == 'image_zx'):
@@ -307,9 +331,35 @@ class image_converter:
 
   def getLength(self, vec):
     return np.sqrt(np.sum(vec**2))
+
+  def XangleToCamera(self, axis, xcord):
+    if (axis == 'zx'):
+      adj = self.zx_adjust
+      depth = 480
+    else:
+      depth = 490
+      adj = self.zy_adjust
+    return adj-np.arctan2(xcord-400,depth)
+
+  def YangleToCamera(self, ycord):
+    depth = 500
+    return np.arctan2(ycord-400,depth)
     
   def angleBetweenVecs(self, a, b):
     return np.arccos(np.dot(a,b)/(self.getLength(a)*self.getLength(b)))
+
+  def angleBetweenVecstest2(self, a, b):
+    norm = np.cross(a,b)
+    norm = norm/np.linalg.norm(norm)
+    print('normal', norm)
+    return np.arctan2(np.dot(np.cross(a,b), norm), np.dot(a,b))
+
+  def angleBetween2DVecs(self,a,b):
+    x1 = a[0]
+    x2 = b[0]
+    y1 = a[1]
+    y2 = b[1]
+    return np.arctan2(x1*y2-y1*x2,np.dot(a,b))
 
   def projToPlane(self, vec, norm):
     return vec - (np.dot(vec, norm)*norm)
@@ -319,6 +369,49 @@ class image_converter:
 
   def angleToPlane(self, vec, norm):
     return (np.pi/2)-self.angleBetweenVecs(vec, norm)
+
+  def getCoordsFromAngles(self, Langle, Rangle, Yangle1, Yangle2):
+    Yangle = (Yangle1+Yangle2)/2
+    l = self.getLength((self.camera_zy_pos - self.camera_zx_pos))
+    d = l/((1/np.tan(Langle)) + (1/np.tan(Rangle)))
+    # Y = 18-d*np.sin(self.targetzyXangle)
+    # X = -18+d*np.sin(self.targetzxXangle)
+    # return d
+    # print('new')
+    # print(d)
+    # print(d/np.sin(Langle))
+    # print(d/np.sin(Langle))
+    # Y = 18 - d/np.sin(Langle)
+    # X = 18 - d/np.sin(Rangle)
+    # return np.array([X,Y,0])
+    vec = (self.camera_zy_pos - self.camera_zx_pos)
+    vec = vec/np.linalg.norm(vec)
+    virtualCameraCoords = self.camera_zx_pos + vec*(d/np.tan(Rangle))
+    Y = (virtualCameraCoords + d*self.virtualCameraDirection)[0]
+    virtualCameraCoords = self.camera_zx_pos - vec*(d/np.tan(Rangle)) + 18
+    X = (virtualCameraCoords + d*self.virtualCameraDirection)[0]
+
+    twoDdistanceFromXY = np.linalg.norm(self.camera_zy_pos[:2] - np.array([X,Y]) )
+    print(-np.tan(Yangle)*twoDdistanceFromXY)
+    Z = 6.25 - np.tan(Yangle)*twoDdistanceFromXY
+    
+    return np.array([X,Y,Z])
+    # 
+    # 
+    
+    # print(virtualCameraCoords)
+    # Y = (virtualCameraCoords + d*self.virtualCameraDirection)[0]
+    
+    # vec = (self.camera_zx_pos - self.camera_zy_pos)
+    # vec = vec/np.linalg.norm(vec)
+    # virtualCameraCoords = self.camera_zx_pos + vec*(d/np.tan(self.targetzyXangle))
+    # X = (virtualCameraCoords + d*self.virtualCameraDirection)[1]
+    
+    # return np.array([X, Y, 0])
+    # Y = l / (((1/(np.tan(self.targetzxXangle))))+1/np.tan(self.targetzyXangle))
+    # X = Y/np.tan(self.targetzxXangle)
+    # return np.array([X,Y])
+
 
 #   def butter_lowpass(cutoff, fs, order=5):
 #     nyq = 0.5 * fs
@@ -445,9 +538,10 @@ class image_converter:
     self.get_Joint_world_positions()
 
     self.targetposs = Float64MultiArray()
-    self.targetposs.data = self.target_pos
+    # self.targetposs.data = self.target_pos
+    self.targetposs.data = self.getCoordsFromAngles(self.targetzxXangle, self.targetzyXangle, self.targetzxYangle, self.targetzyYangle)
     self.target_joints_pub.publish(self.targetposs)
-
+    print(self.getCoordsFromAngles(self.YelXanglezx, self.YelXanglezy, self.YelYanglezy, self.YelYanglezx))
 
     # print('measured', self.red_pos)
     # print('predicted', self.invkin(0,0.1,0.1,0))
@@ -456,14 +550,14 @@ class image_converter:
     j2 = joints[0]
     j3 = joints[1]
     j4 = joints[2]
-    print("expected")
-    print(j2, j3, j4)
+    # print("expected")
+    # print(j2, j3, j4)
 
     self.joints = Float64MultiArray()
     self.joints.data = self.predict_Joint_angles()
     self.robot_joints_pub.publish(self.joints)
-    print("measured")
-    print(self.joints.data)
+    # print("measured")
+    # print(self.joints.data)
 
     self.Joint2 = Float64()
     self.Joint2.data = j2
@@ -477,6 +571,9 @@ class image_converter:
     self.Joint4.data = j4
     # self.Joint4.data = 0
     # self.robot_joint4_pub.publish(self.Joint4)
+
+    # print("zy", self.zy_adjust)
+    # print("zx", self.zx_adjust)
 
     self.draw_centers_on_images()
 
