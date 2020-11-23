@@ -369,11 +369,16 @@ class image_converter:
     m2 =(-np.arctan((self.link3[1])/(self.link3[2])))
     rot = np.array([[np.cos(m3), 0,np.sin(m3)],[0,1,0],[-np.sin(m3),0,np.cos(m3)]]) 
     m2 = self.angleBetweenVecs(self.blue_pos - self.last_blue, np.array([0,0,1]))
+    # m2 = np.arctan2(self.link3[2], self.link3[1])
     # m2 = self.angleToPlane(self.link3, np.dot(rot, np.array([0,-1,0])))
     if (self.green_pos[1] > 0):
       m2 *= -1
 
+    m2 = np.arccos(self.green_pos[1]/(-3.5*np.cos(m3)))
+
     m4 = self.angleBetweenVecs(self.link3, self.link4)
+    # print((self.link4[0]/3)/np.sin(m3))
+    # m4 = np.arccos(((self.red_pos[0] - 3.5*np.sin(m3))/3)/np.sin(m3))
     return np.array([m2,m3,m4])
 
   def draw_centers_on_images(self):
@@ -451,11 +456,11 @@ class image_converter:
 
     # print('measured', self.red_pos)
     # print('predicted', self.invkin(0,0.1,0.1,0))
-    # j2, j3, j4 = self.trajectory()
-    joints = self.control_closed()
-    j2 = joints[0]
-    j3 = joints[1]
-    j4 = joints[2]
+    j2, j3, j4 = self.trajectory()
+    # joints = self.control_closed()
+    # j2 = joints[0]
+    # j3 = joints[1]
+    # j4 = joints[2]
     print("expected")
     print(j2, j3, j4)
 
@@ -468,15 +473,15 @@ class image_converter:
     self.Joint2 = Float64()
     self.Joint2.data = j2
     # self.Joint2.data = 0.1
-    # self.robot_joint2_pub.publish(self.Joint2)
+    self.robot_joint2_pub.publish(self.Joint2)
     self.Joint3 = Float64()
     self.Joint3.data = j3
     # self.Joint3.data = 0.0
-    # self.robot_joint3_pub.publish(self.Joint3)
+    self.robot_joint3_pub.publish(self.Joint3)
     self.Joint4 = Float64()
     self.Joint4.data = j4
     # self.Joint4.data = 0
-    # self.robot_joint4_pub.publish(self.Joint4)
+    self.robot_joint4_pub.publish(self.Joint4)
 
     self.draw_centers_on_images()
 

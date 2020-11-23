@@ -93,13 +93,17 @@ class image_converter:
           M = self.lastRMomzx
         else:
           M = self.lastRMomzy
-      if (image == 'image_zx'):
-          self.lastRMomzx = M
-      else:
-        self.lastRMomzy = M
       # Calculate pixel coordinates for the centre of the blob
       cx = int(M['m10'] / M['m00'])
       cy = int(M['m01'] / M['m00'])
+      if (image == 'image_zx'):
+        self.lastRMomzx = M
+        self.RXanglezx = self.XangleToCamera('zx', cx)
+        self.RYanglezx = self.YangleToCamera(cy)
+      else:
+        self.lastRMomzy = M
+        self.RXanglezy = self.XangleToCamera('zy', cx)
+        self.RYanglezy = self.YangleToCamera(cy)
       # temp = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
       # temp[cy, cx] = [0,0,255]
       # cv2.imshow('r '+image, temp)
@@ -118,13 +122,16 @@ class image_converter:
           M = self.lastGMomzx
         else:
           M = self.lastGMomzy
-      if (image == 'image_zx'):
-          self.lastGMomzx = M
-          
-      else:
-        self.lastGMomzy = M
       cx = int(M['m10'] / M['m00'])
       cy = int(M['m01'] / M['m00'])
+      if (image == 'image_zx'):
+        self.lastGMomzx = M
+        self.GXanglezx = self.XangleToCamera('zx', cx)
+        self.GYanglezx = self.YangleToCamera(cy)
+      else:
+        self.lastGMomzy = M
+        self.GXanglezy = self.XangleToCamera('zy', cx)
+        self.GYanglezy = self.YangleToCamera(cy)
       # temp = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
       # temp[cy, cx] = [0,0,255]
       # cv2.imshow('g '+image, temp)
@@ -143,12 +150,16 @@ class image_converter:
           M = self.lastBMomzx
         else:
           M = self.lastBMomzy
-      if (image == 'image_zx'):
-          self.lastBMomzx = M
-      else:
-        self.lastBMomzy = M
       cx = int(M['m10'] / M['m00'])
       cy = int(M['m01'] / M['m00'])
+      if (image == 'image_zx'):
+        self.lastBMomzx = M
+        self.BXanglezx = self.XangleToCamera('zx', cx)
+        self.BYanglezx = self.YangleToCamera(cy)
+      else:
+        self.lastBMomzy = M
+        self.BXanglezy = self.XangleToCamera('zy', cx)
+        self.BYanglezy = self.YangleToCamera(cy)
       # temp = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
       # temp[cy, cx] = [0,0,255]
       # cv2.imshow('b '+image, temp)
@@ -346,12 +357,15 @@ class image_converter:
     return np.arctan2(ycord-400,depth)
     
   def angleBetweenVecs(self, a, b):
+    # print(np.sign(np.dot(a,np.cross(a,b))))
+    print(np.linalg.norm(np.cross(a,b)/(np.linalg.norm(a) * np.linalg.norm(b))))
     return np.arccos(np.dot(a,b)/(self.getLength(a)*self.getLength(b)))
 
   def angleBetweenVecstest2(self, a, b):
     norm = np.cross(a,b)
     norm = norm/np.linalg.norm(norm)
-    print('normal', norm)
+    print(np.arctan2(np.linalg.norm(np.cross(a,b))), np.dot(a,b))
+    # print('normal', norm)
     return np.arctan2(np.dot(np.cross(a,b), norm), np.dot(a,b))
 
   def angleBetween2DVecs(self,a,b):
@@ -374,55 +388,18 @@ class image_converter:
     Yangle = (Yangle1+Yangle2)/2
     l = self.getLength((self.camera_zy_pos - self.camera_zx_pos))
     d = l/((1/np.tan(Langle)) + (1/np.tan(Rangle)))
-    # Y = 18-d*np.sin(self.targetzyXangle)
-    # X = -18+d*np.sin(self.targetzxXangle)
-    # return d
-    # print('new')
-    # print(d)
-    # print(d/np.sin(Langle))
-    # print(d/np.sin(Langle))
-    # Y = 18 - d/np.sin(Langle)
-    # X = 18 - d/np.sin(Rangle)
-    # return np.array([X,Y,0])
     vec = (self.camera_zy_pos - self.camera_zx_pos)
     vec = vec/np.linalg.norm(vec)
     virtualCameraCoords = self.camera_zx_pos + vec*(d/np.tan(Rangle))
     Y = (virtualCameraCoords + d*self.virtualCameraDirection)[0]
     virtualCameraCoords = self.camera_zx_pos - vec*(d/np.tan(Rangle)) + 18
-    X = (virtualCameraCoords + d*self.virtualCameraDirection)[0]
+    X = (virtualCameraCoords + d*self.virtualCameraDirection)[0] + 0.5
 
     twoDdistanceFromXY = np.linalg.norm(self.camera_zy_pos[:2] - np.array([X,Y]) )
-    print(-np.tan(Yangle)*twoDdistanceFromXY)
+    # print(-np.tan(Yangle)*twoDdistanceFromXY)
     Z = 6.25 - np.tan(Yangle)*twoDdistanceFromXY
     
     return np.array([X,Y,Z])
-    # 
-    # 
-    
-    # print(virtualCameraCoords)
-    # Y = (virtualCameraCoords + d*self.virtualCameraDirection)[0]
-    
-    # vec = (self.camera_zx_pos - self.camera_zy_pos)
-    # vec = vec/np.linalg.norm(vec)
-    # virtualCameraCoords = self.camera_zx_pos + vec*(d/np.tan(self.targetzyXangle))
-    # X = (virtualCameraCoords + d*self.virtualCameraDirection)[1]
-    
-    # return np.array([X, Y, 0])
-    # Y = l / (((1/(np.tan(self.targetzxXangle))))+1/np.tan(self.targetzyXangle))
-    # X = Y/np.tan(self.targetzxXangle)
-    # return np.array([X,Y])
-
-
-#   def butter_lowpass(cutoff, fs, order=5):
-#     nyq = 0.5 * fs
-#     normal_cutoff = cutoff / nyq
-#     b, a = butter(order, normal_cutoff, btype='low', analog=False)
-#     return b, a
-
-# def butter_lowpass_filter(data, cutoff, fs, order=5):
-#     b, a = butter_lowpass(cutoff, fs, order=order)
-#     y = lfilter(b, a, data)
-#     return y
 
   def trajectory(self):
     # get current time
@@ -467,6 +444,12 @@ class image_converter:
       m2 *= -1
 
     m4 = self.angleBetweenVecs(self.link3, self.link4)
+    if (self.green_pos[1]>0):
+      if (self.red_pos[2]>self.green_pos[2]):
+        m4 *= -1
+    else:
+      if (self.red_pos[2]<self.green_pos[2]):
+        m4 *= -1
     return np.array([m2,m3,m4])
 
   def draw_centers_on_images(self):
@@ -541,15 +524,21 @@ class image_converter:
     # self.targetposs.data = self.target_pos
     self.targetposs.data = self.getCoordsFromAngles(self.targetzxXangle, self.targetzyXangle, self.targetzxYangle, self.targetzyYangle)
     self.target_joints_pub.publish(self.targetposs)
-    print(self.getCoordsFromAngles(self.YelXanglezx, self.YelXanglezy, self.YelYanglezy, self.YelYanglezx))
+    self.yellow_pos = self.getCoordsFromAngles(self.YelXanglezx, self.YelXanglezy, self.YelYanglezy, self.YelYanglezx)
+    self.blue_pos = self.getCoordsFromAngles(self.BXanglezx, self.BXanglezy, self.BYanglezy, self.BYanglezx)
+    self.green_pos = self.getCoordsFromAngles(self.GXanglezx, self.GXanglezy, self.GYanglezy, self.GYanglezx)
+    self.red_pos = self.getCoordsFromAngles(self.RXanglezx, self.RXanglezy, self.RYanglezy, self.RYanglezx)
+    self.link3 = self.green_pos-self.blue_pos
+    self.link4 = self.red_pos-self.green_pos
+    # print(self.blue_pos-self.yellow_pos)
 
     # print('measured', self.red_pos)
     # print('predicted', self.invkin(0,0.1,0.1,0))
-    # j2, j3, j4 = self.trajectory()
-    joints = self.control_closed()
-    j2 = joints[0]
-    j3 = joints[1]
-    j4 = joints[2]
+    j2, j3, j4 = self.trajectory()
+    # joints = self.control_closed()
+    # j2 = joints[0]
+    # j3 = joints[1]
+    # j4 = joints[2]
     # print("expected")
     # print(j2, j3, j4)
 
@@ -562,15 +551,15 @@ class image_converter:
     self.Joint2 = Float64()
     self.Joint2.data = j2
     # self.Joint2.data = 0.1
-    # self.robot_joint2_pub.publish(self.Joint2)
+    self.robot_joint2_pub.publish(self.Joint2)
     self.Joint3 = Float64()
     self.Joint3.data = j3
     # self.Joint3.data = 0.0
-    # self.robot_joint3_pub.publish(self.Joint3)
+    self.robot_joint3_pub.publish(self.Joint3)
     self.Joint4 = Float64()
     self.Joint4.data = j4
     # self.Joint4.data = 0
-    # self.robot_joint4_pub.publish(self.Joint4)
+    self.robot_joint4_pub.publish(self.Joint4)
 
     # print("zy", self.zy_adjust)
     # print("zx", self.zx_adjust)
