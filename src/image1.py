@@ -89,6 +89,7 @@ class image_converter:
           self.lastRMomzx = M
       else:
         self.lastRMomzy = M
+
       # Calculate pixel coordinates for the centre of the blob
       cx = int(M['m10'] / M['m00'])
       cy = int(M['m01'] / M['m00'])
@@ -196,6 +197,7 @@ class image_converter:
         y = int(m['m01']/m['m00'])
         if (targetret < wallret):
             print(image, targetret)
+            print(m['m00'])
             scores.append(targetret)
             centers.append(np.array([x,y]))
       if (len(scores)>=1):
@@ -292,8 +294,8 @@ class image_converter:
     elif (Joint == 'target'):
       jointposzy = self.target_zy
       jointposzx = self.target_zx
-    z_zy = (self.yellow_zy - jointposzy)[1] * self.scale_zy  
-    z_zx = (self.yellow_zx - jointposzx)[1] * self.scale_zx
+    z_zy = (self.yellow_zy - jointposzy)[1] * self.scale_z
+    z_zx = (self.yellow_zx - jointposzx)[1] * self.scale_z
     return (z_zy + z_zx)/2 #min(z_zy, z_zx)
 
   def detect_position_in_world(self, Joint):
@@ -466,14 +468,17 @@ class image_converter:
     self.endeffect.data = self.red_pos
     self.robot_endeffec_pub.publish(self.endeffect)
 
+    print("end effector:")
+    print(self.endeffect.data)
+
 
     # print('measured', self.red_pos)
     # print('predicted', self.invkin(0,0.1,0.1,0))
     j2, j3, j4 = self.trajectory()
-    joints = self.control_closed()
-    j2 = joints[0]
-    j3 = joints[1]
-    j4 = joints[2]
+    # joints = self.control_closed()
+    # j2 = joints[0]
+    # j3 = joints[1]
+    # j4 = joints[2]
     print("expected")
     print(j2, j3, j4)
 
@@ -486,15 +491,15 @@ class image_converter:
     self.Joint2 = Float64()
     self.Joint2.data = j2 
     # self.Joint2.data = 0.0
-    self.robot_joint2_pub.publish(self.Joint2)
+    # self.robot_joint2_pub.publish(self.Joint2)
     self.Joint3 = Float64()
     self.Joint3.data = j3
     # self.Joint3.data = 1.5
-    self.robot_joint3_pub.publish(self.Joint3)
+    # self.robot_joint3_pub.publish(self.Joint3)
     self.Joint4 = Float64()
     self.Joint4.data = j4
     # self.Joint4.data = 0
-    self.robot_joint4_pub.publish(self.Joint4)
+    # self.robot_joint4_pub.publish(self.Joint4)
     
 
     self.draw_centers_on_images()
