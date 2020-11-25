@@ -62,6 +62,10 @@ In the plot you can see flat parts and jumps in plots of the measured values. Th
 \newpage
 \section{Robot Control}
 \subsection{Robot Kinematics}
+D-H representation:\newline
+\begin{center}
+    \includegraphics[]{D-H.png}
+\end{center}\newline
 D-H Table:
 \begin{center}
     \begin{tabular}{c|c c c c}
@@ -92,15 +96,164 @@ D-H Table:
      A_1^0A_2^1A_3^2A_4^3 = $\left[\begin{matrix}\left(s{\left(\theta_{1} \right)} s{\left(\theta_{2} \right)} c{\left(\theta_{3} \right)} + s{\left(\theta_{3} \right)} c{\left(\theta_{1} \right)}\right) c{\left(\theta_{4} \right)} + s{\left(\theta_{1} \right)} s{\left(\theta_{4} \right)} c{\left(\theta_{2} \right)} & - \left(s{\left(\theta_{1} \right)} s{\left(\theta_{2} \right)} c{\left(\theta_{3} \right)} + s{\left(\theta_{3} \right)} c{\left(\theta_{1} \right)}\right) s{\left(\theta_{4} \right)} + s{\left(\theta_{1} \right)} c{\left(\theta_{2} \right)} c{\left(\theta_{4} \right)}\\\left(s{\left(\theta_{1} \right)} s{\left(\theta_{3} \right)} - s{\left(\theta_{2} \right)} c{\left(\theta_{1} \right)} c{\left(\theta_{3} \right)}\right) c{\left(\theta_{4} \right)} - s{\left(\theta_{4} \right)} c{\left(\theta_{1} \right)} c{\left(\theta_{2} \right)} & - \left(s{\left(\theta_{1} \right)} s{\left(\theta_{3} \right)} - s{\left(\theta_{2} \right)} c{\left(\theta_{1} \right)} c{\left(\theta_{3} \right)}\right) s{\left(\theta_{4} \right)} - c{\left(\theta_{1} \right)} c{\left(\theta_{2} \right)} c{\left(\theta_{4} \right)}\\- s{\left(\theta_{2} \right)} s{\left(\theta_{4} \right)} + c{\left(\theta_{2} \right)} c{\left(\theta_{3} \right)} c{\left(\theta_{4} \right)} & - s{\left(\theta_{2} \right)} c{\left(\theta_{4} \right)} - s{\left(\theta_{4} \right)} c{\left(\theta_{2} \right)} c{\left(\theta_{3} \right)}\\0 & 0\end{matrix}\right.$\\\\
      $\left.\begin{matrix}- s{\left(\theta_{1} \right)} s{\left(\theta_{2} \right)} s{\left(\theta_{3} \right)} + c{\left(\theta_{1} \right)} c{\left(\theta_{3} \right)} & 3 \left(s{\left(\theta_{1} \right)} s{\left(\theta_{2} \right)} c{\left(\theta_{3} \right)} + s{\left(\theta_{3} \right)} c{\left(\theta_{1} \right)}\right) c{\left(\theta_{4} \right)} + 3.5 s{\left(\theta_{1} \right)} s{\left(\theta_{2} \right)} c{\left(\theta_{3} \right)} + 3 s{\left(\theta_{1} \right)} s{\left(\theta_{4} \right)} c{\left(\theta_{2} \right)} + 3.5 s{\left(\theta_{3} \right)} c{\left(\theta_{1} \right)}\\s{\left(\theta_{1} \right)} c{\left(\theta_{3} \right)} + s{\left(\theta_{2} \right)} s{\left(\theta_{3} \right)} c{\left(\theta_{1} \right)} & 3 \left(s{\left(\theta_{1} \right)} s{\left(\theta_{3} \right)} - s{\left(\theta_{2} \right)} c{\left(\theta_{1} \right)} c{\left(\theta_{3} \right)}\right) c{\left(\theta_{4} \right)} + 3.5 s{\left(\theta_{1} \right)} s{\left(\theta_{3} \right)} - 3.5 s{\left(\theta_{2} \right)} c{\left(\theta_{1} \right)} c{\left(\theta_{3} \right)} - 3 s{\left(\theta_{4} \right)} c{\left(\theta_{1} \right)} c{\left(\theta_{2} \right)}\\- s{\left(\theta_{3} \right)} c{\left(\theta_{2} \right)} & - 3 s{\left(\theta_{2} \right)} s{\left(\theta_{4} \right)} + 3 c{\left(\theta_{2} \right)} c{\left(\theta_{3} \right)} c{\left(\theta_{4} \right)} + 3.5 c{\left(\theta_{2} \right)} c{\left(\theta_{3} \right)} + 2.5\\0 & 1\end{matrix}\right]$\\\\
 so:\\
-$\left[\begin{matrix}3 \left(s{\left(\theta_{1} \right)} s{\left(\theta_{2} \right)} c{\left(\theta_{3} \right)} + s{\left(\theta_{3} \right)} c{\left(\theta_{1} \right)}\right) c{\left(\theta_{4} \right)} + 3.5 s{\left(\theta_{1} \right)} s{\left(\theta_{2} \right)} c{\left(\theta_{3} \right)} + 3 s{\left(\theta_{1} \right)} s{\left(\theta_{4} \right)} c{\left(\theta_{2} \right)} + 3.5 s{\left(\theta_{3} \right)} c{\left(\theta_{1} \right)}\\3 \left(s{\left(\theta_{1} \right)} s{\left(\theta_{3} \right)} - s{\left(\theta_{2} \right)} c{\left(\theta_{1} \right)} c{\left(\theta_{3} \right)}\right) c{\left(\theta_{4} \right)} + 3.5 s{\left(\theta_{1} \right)} s{\left(\theta_{3} \right)} - 3.5 s{\left(\theta_{2} \right)} c{\left(\theta_{1} \right)} c{\left(\theta_{3} \right)} - 3 s{\left(\theta_{4} \right)} c{\left(\theta_{1} \right)} c{\left(\theta_{2} \right)}\\- 3 s{\left(\theta_{2} \right)} s{\left(\theta_{4} \right)} + 3 c{\left(\theta_{2} \right)} c{\left(\theta_{3} \right)} c{\left(\theta_{4} \right)} + 3.5 c{\left(\theta_{2} \right)} c{\left(\theta_{3} \right)} + 2.5\\1\end{matrix}\right]$
+$\left[\begin{matrix}x\\y\\z\end{matrix}\right]$ = \left[\begin{matrix}3 \left(s{\left(\theta_{1} \right)} s{\left(\theta_{2} \right)} c{\left(\theta_{3} \right)} + s{\left(\theta_{3} \right)} c{\left(\theta_{1} \right)}\right) c{\left(\theta_{4} \right)} + 3.5 s{\left(\theta_{1} \right)} s{\left(\theta_{2} \right)} c{\left(\theta_{3} \right)} + 3 s{\left(\theta_{1} \right)} s{\left(\theta_{4} \right)} c{\left(\theta_{2} \right)} + 3.5 s{\left(\theta_{3} \right)} c{\left(\theta_{1} \right)}\\3 \left(s{\left(\theta_{1} \right)} s{\left(\theta_{3} \right)} - s{\left(\theta_{2} \right)} c{\left(\theta_{1} \right)} c{\left(\theta_{3} \right)}\right) c{\left(\theta_{4} \right)} + 3.5 s{\left(\theta_{1} \right)} s{\left(\theta_{3} \right)} - 3.5 s{\left(\theta_{2} \right)} c{\left(\theta_{1} \right)} c{\left(\theta_{3} \right)} - 3 s{\left(\theta_{4} \right)} c{\left(\theta_{1} \right)} c{\left(\theta_{2} \right)}\\- 3 s{\left(\theta_{2} \right)} s{\left(\theta_{4} \right)} + 3 c{\left(\theta_{2} \right)} c{\left(\theta_{3} \right)} c{\left(\theta_{4} \right)} + 3.5 c{\left(\theta_{2} \right)} c{\left(\theta_{3} \right)} + 2.5\end{matrix}\right]$
 \end{tabular}
-    
-
-
-
 \end{center}
 \end{landscape}
-\subsection{Closed Loop Control}
 
+\subsection{Closed Loop Control}
+$\left[\begin{matrix}\left(- 3 s{\left(\theta_{1} \right)} s{\left(\theta_{3} \right)} + 3 s{\left(\theta_{2} \right)} c{\left(\theta_{1} \right)} c{\left(\theta_{3} 
+\right)}\right) c{\left(\theta_{4} \right)} - 3.5 s{\left(\theta_{1} \right)} s{\left(\theta_{3} \right)} + 3.5 s{\left(\theta_{2} \right)} c{\left(\theta_{1} \right)} c{\left(\theta_{3} \right)} + 3 s{\left(\theta_{4} \right)} c{\left(\theta_{1} \right)} c{\left(\theta_{2} \right)}\\\left(3 s{\left(\theta_{1} \right)} s{\left(\theta_{2} \right)} c{\left(\theta_{3} \right)} + 3 s{\left(\theta_{3} \right)} c{\left(\theta_{1} \right)}\right) c{\left(\theta_{4} \right)} + 3.5 s{\left(\theta_{1} \right)} s{\left(\theta_{2} \right)} c{\left(\theta_{3} \right)} + 3 s{\left(\theta_{1} \right)} s{\left(\theta_{4} \right)} c{\left(\theta_{2} \right)} + 3.5 s{\left(\theta_{3} \right)} c{\left(\theta_{1} \right)}\\0\end{matrix}\right.$\\\\\\\\
+$\begin{matrix}- 3 s{\left(\theta_{1} \right)} s{\left(\theta_{2} \right)} s{\left(\theta_{4} \right)} + 3 s{\left(\theta_{1} \right)} c{\left(\theta_{2} \right)} c{\left(\theta_{3} \right)} c{\left(\theta_{4} \right)} + 3.5 s{\left(\theta_{1} \right)} c{\left(\theta_{2} \right)} c{\left(\theta_{3} \right)}\\3 s{\left(\theta_{2} \right)} s{\left(\theta_{4} \right)} c{\left(\theta_{1} \right)} - 3 c{\left(\theta_{1} \right)} c{\left(\theta_{2} \right)} c{\left(\theta_{3} \right)} c{\left(\theta_{4} \right)} - 3.5 c{\left(\theta_{1} \right)} c{\left(\theta_{2} \right)} c{\left(\theta_{3} \right)}\\- 3 s{\left(\theta_{2} \right)} c{\left(\theta_{3} \right)} c{\left(\theta_{4} \right)} - 3.5 s{\left(\theta_{2} \right)} c{\left(\theta_{3} \right)} - 3 s{\left(\theta_{4} \right)} c{\left(\theta_{2} \right)}\end{matrix}$\\\\\\\\
+$\begin{matrix}\left(- 3 s{\left(\theta_{1} \right)} s{\left(\theta_{2} \right)} s{\left(\theta_{3} \right)} + 3 c{\left(\theta_{1} \right)} c{\left(\theta_{3} 
+\right)}\right) c{\left(\theta_{4} \right)} - 3.5 s{\left(\theta_{1} \right)} s{\left(\theta_{2} \right)} s{\left(\theta_{3} \right)} + 3.5 c{\left(\theta_{1} \right)} c{\left(\theta_{3} \right)}\\\left(3 s{\left(\theta_{1} \right)} c{\left(\theta_{3} \right)} + 3 s{\left(\theta_{2} \right)} s{\left(\theta_{3} \right)} c{\left(\theta_{1} \right)}\right) c{\left(\theta_{4} \right)} + 3.5 s{\left(\theta_{1} \right)} c{\left(\theta_{3} \right)} + 3.5 s{\left(\theta_{2} \right)} s{\left(\theta_{3} \right)} c{\left(\theta_{1} \right)}\\- 3 s{\left(\theta_{3} \right)} c{\left(\theta_{2} \right)} c{\left(\theta_{4} \right)} - 3.5 s{\left(\theta_{3} \right)} c{\left(\theta_{2} \right)}\end{matrix}$\\\\\\\\
+$\left.\begin{matrix}- \left(3 s{\left(\theta_{1} \right)} s{\left(\theta_{2} \right)} c{\left(\theta_{3} \right)} + 3 s{\left(\theta_{3} \right)} c{\left(\theta_{1} 
+\right)}\right) s{\left(\theta_{4} \right)} + 3 s{\left(\theta_{1} \right)} c{\left(\theta_{2} \right)} c{\left(\theta_{4} \right)}\\- \left(3 s{\left(\theta_{1} \right)} s{\left(\theta_{3} \right)} - 3 s{\left(\theta_{2} \right)} c{\left(\theta_{1} \right)} c{\left(\theta_{3} \right)}\right) s{\left(\theta_{4} \right)} - 3 c{\left(\theta_{1} \right)} c{\left(\theta_{2} \right)} c{\left(\theta_{4} \right)}\\- 3 s{\left(\theta_{2} \right)} c{\left(\theta_{4} \right)} - 3 s{\left(\theta_{4} \right)} c{\left(\theta_{2} \right)} c{\left(\theta_{3} \right)}\end{matrix}\right]$\\\\\\\\
+But as we aren't reading joint 1 and thus don't want to change it we set $\theta_{1}$ to 0 to get a new kinematic equation and deriving by $\theta_{2 - 4}$ to get the Jacobian:\\\\\\\\
+$\left[\begin{matrix}0 & 3 c{\left(\theta_{3} \right)} c{\left(\theta_{4} \right)} + 3.5 c{\left(\theta_{3} \right)} & - 3 s{\left(\theta_{3} \right)} s{\left(\theta_{4} \right)}\\3 s{\left(\theta_{2} \right)} s{\left(\theta_{4} \right)} - 3 c{\left(\theta_{2} \right)} c{\left(\theta_{3} \right)} c{\left(\theta_{4} \right)} - 3.5 c{\left(\theta_{2} \right)} c{\left(\theta_{3} \right)} & 3 s{\left(\theta_{2} \right)} s{\left(\theta_{3} \right)} c{\left(\theta_{4} \right)} + 3.5 s{\left(\theta_{2} \right)} s{\left(\theta_{3} \right)} & 3 s{\left(\theta_{2} \right)} s{\left(\theta_{4} \right)} c{\left(\theta_{3} \right)} - 3 c{\left(\theta_{2} \right)} 
+c{\left(\theta_{4} \right)}\\- 3 s{\left(\theta_{2} \right)} c{\left(\theta_{3} \right)} c{\left(\theta_{4} \right)} - 3.5 s{\left(\theta_{2} \right)} c{\left(\theta_{3} \right)} - 3 s{\left(\theta_{4} \right)} c{\left(\theta_{2} \right)} & - 3 s{\left(\theta_{3} \right)} c{\left(\theta_{2} \right)} c{\left(\theta_{4} \right)} - 3.5 s{\left(\theta_{3} \right)} c{\left(\theta_{2} \right)} & - 3 s{\left(\theta_{2} \right)} c{\left(\theta_{4} \right)} - 3 s{\left(\theta_{4} \right)} c{\left(\theta_{2} \right)} c{\left(\theta_{3} \right)}\end{matrix}\right]$
+\begin{landscape}
+Results compared to measurements:
+
+    \begin{tabular}{|c|c|c|c|}\hline
+        \begin{tabular}{c|c|c|c}
+             Joint 1 & Joint 2 & Joint 3 & Joint 4 \\
+        \end{tabular} & \begin{tabular}{c|c|c|c}
+             1 & 1 & 1 & 1 \\
+        \end{tabular} & \begin{tabular}{c|c|c|c}
+             -1 & -1 & -1 & -1 \\
+        \end{tabular} & \begin{tabular}{c|c|c|c}
+             0.5 & 0.5 & 0.5 & 0.5 \\
+        \end{tabular} \\ \hline
+        \begin{tabular}{c|c}
+            Expected X & Measured X \\
+        \end{tabular} & \begin{tabular}{c|c}
+            5.43505915 & 5.50621518 \\
+        \end{tabular} & \begin{tabular}{c|c}
+            0.77863167 & 1.14560987 \\
+        \end{tabular} & \begin{tabular}{c|c}
+            4.42244339 & 5.3099079 \\
+        \end{tabular} \\ \hline
+        \begin{tabular}{c|c}
+            Expected Y & Measured Y \\
+        \end{tabular} & \begin{tabular}{c|c}
+            1.63109557 & 2.57333704 \\
+        \end{tabular} & \begin{tabular}{c|c}
+            5.62086056 & 6.50242848 \\
+        \end{tabular} & \begin{tabular}{c|c}
+            -1.96248064 & -2.89983309 \\
+        \end{tabular} \\ \hline
+        \begin{tabular}{c|c}
+            Expected Z & Measured Z \\
+        \end{tabular} & \begin{tabular}{c|c}
+            1.8707086 & 0.87533333 \\
+        \end{tabular}& \begin{tabular}{c|c}
+            1.8707086 & 1.98551218 \\
+        \end{tabular}& \begin{tabular}{c|c}
+            6.53359616 & 7.38695928 \\
+        \end{tabular}\\ \hline
+    \end{tabular}
+    
+    \begin{tabular}{|c|c|c|c|c|}\hline
+        \begin{tabular}{c|c|c|c}
+             Joint 1 & Joint 2 & Joint 3 & Joint 4 \\
+        \end{tabular} & \begin{tabular}{c|c|c|c}
+             -0.5 & -0.5 & -0.5 & -0.5 \\
+        \end{tabular} & \begin{tabular}{c|c|c|c}
+             1 & 1 & 0.5 & 0.5 \\
+        \end{tabular} & \begin{tabular}{c|c|c|c}
+             1 & 1 & -0.5 & -0.5 \\
+        \end{tabular} \\ \hline
+        \begin{tabular}{c|c}
+            Expected X & Measured X \\
+        \end{tabular} & \begin{tabular}{c|c}
+            -0.73808584 & -0.58565161 \\
+        \end{tabular} & \begin{tabular}{c|c}
+            6.05335099 & 6.85217889 \\
+        \end{tabular} & \begin{tabular}{c|c}
+            1.56834056 & 2.40972259 \\
+        \end{tabular}\\ \hline
+        \begin{tabular}{c|c}
+            Expected Y & Measured Y \\
+        \end{tabular} & \begin{tabular}{c|c}
+            4.78169061 & 4.87745691 \\
+        \end{tabular} & \begin{tabular}{c|c}
+            -0.3926976 & -0.68710674 \\
+        \end{tabular} & \begin{tabular}{c|c}
+            -4.50113426 & -5.53475254 \\
+        \end{tabular} \\ \hline
+        \begin{tabular}{c|c}
+            Expected Z & Measured Z \\
+        \end{tabular} & \begin{tabular}{c|c}
+            6.53359616 & 6.93861782 \\
+        \end{tabular} & \begin{tabular}{c|c}
+            4.19763488 & 3.97102435 \\
+        \end{tabular} & \begin{tabular}{c|c}
+            6.61817096 & 7.55775603 \\
+        \end{tabular}\\ \hline
+    \end{tabular}
+    
+    \begin{tabular}{|c|c|c|c|}\hline
+        \begin{tabular}{c|c|c|c}
+             Joint 1 & Joint 2 & Joint 3 & Joint 4 \\
+        \end{tabular} & \begin{tabular}{c|c|c|c}
+             -1 & -1 & 0.5 & 0.5 \\
+        \end{tabular} &  \begin{tabular}{c|c|c|c}
+             -1 & -1 & -0.5 & -0.5 \\
+        \end{tabular} &  \begin{tabular}{c|c|c|c}
+             0.75 & 0.75 & 0.75 & 0.75 \\
+        \end{tabular} \\ \hline
+        \begin{tabular}{c|c}
+            Expected X & Measured X \\
+        \end{tabular} & \begin{tabular}{c|c}
+            4.74552976 & 5.21450009 \\
+        \end{tabular} & \begin{tabular}{c|c}
+            2.87616178 & 2.48873868 \\
+        \end{tabular} & \begin{tabular}{c|c}
+            5.79642393 & 6.23076923 \\
+        \end{tabular}\\ \hline
+        \begin{tabular}{c|c}
+            Expected Y & Measured Y \\
+        \end{tabular} & \begin{tabular}{c|c}
+            -0.44704475 & -0.73005091 \\
+        \end{tabular} & \begin{tabular}{c|c}
+            5.34087662 & 7.19933978 \\
+        \end{tabular} & \begin{tabular}{c|c}
+            -0.52696641 & -0.88461538 \\
+        \end{tabular} \\ \hline
+        \begin{tabular}{c|c}
+            Expected Z & Measured Z \\
+        \end{tabular} & \begin{tabular}{c|c}
+            6.61817096 & 7.51505684 \\
+        \end{tabular} & \begin{tabular}{c|c}
+            4.19763488 & 4.37666663 \\
+        \end{tabular} & \begin{tabular}{c|c}
+            4.15506564 & 3.90697557 \\
+        \end{tabular}\\ \hline
+    \end{tabular}
+    
+    \begin{tabular}{|c|c|}\hline
+        \begin{tabular}{c|c|c|c}
+             Joint 1 & Joint 2 & Joint 3 & Joint 4 \\
+        \end{tabular} & \begin{tabular}{c|c|c|c}
+             -0.75 & -0.75 & -0.75 & -0.75 \\
+        \end{tabular} \\ \hline
+        \begin{tabular}{c|c}
+            Expected X & Measured X \\
+        \end{tabular} & \begin{tabular}{c|c}
+            0.11562354 & 0.53024217 \\
+        \end{tabular} \\ \hline
+        \begin{tabular}{c|c}
+            Expected Y & Measured Y \\
+        \end{tabular} & \begin{tabular}{c|c}
+            5.81917994 & 6.28110239 \\
+        \end{tabular} \\ \hline
+        \begin{tabular}{c|c}
+            Expected Z & Measured Z \\
+        \end{tabular} & \begin{tabular}{c|c}
+            4.15506564 & 4.462065 \\
+        \end{tabular} \\ \hline
+    \end{tabular}
+\end{landscape}
 \end{document}
 
