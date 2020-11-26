@@ -36,7 +36,7 @@ class image_converter:
     self.scale_xy = 0.038461538461538464
     self.scale_z = 0.04269918660532219
     self.last_blue = np.array([0,0,2.5])
-    self.data = {'elapsed_time':[], 'expected_Joint2':[], 'expected_Joint3':[], 'expected_Joint4':[], 'Yellow_zx_pos':[], 'Yellow_zy_pos':[],'Blue_zx_pos':[], 'Blue_zy_pos':[],'Green_zx_pos':[], 'Green_zy_pos':[],'Red_zx_pos':[], 'Red_zy_pos':[]}
+    self.data = {'elapsed_time':[], 'expected_Joint2':[], 'expected_Joint3':[], 'expected_Joint4':[], 'Yellow_zx_pos':[], 'Yellow_zy_pos':[],'Yellow_3D_pos':[],'Blue_zx_pos':[], 'Blue_zy_pos':[],'Blue_3D_pos':[],'Green_zx_pos':[], 'Green_zy_pos':[],'Green_3D_pos':[],'Red_zx_pos':[], 'Red_zy_pos':[], 'Red_3D_pos':[]}
     self.pickled = False
 
 
@@ -565,12 +565,16 @@ class image_converter:
     self.data['expected_Joint4'].append(j4)
     self.data['Yellow_zx_pos'].append(self.yellow_zx)
     self.data['Yellow_zy_pos'].append(self.yellow_zy)
+    self.data['Yellow_3D_pos'].append(self.yellow_pos)
     self.data['Blue_zx_pos'].append(self.blue_zx)
     self.data['Blue_zy_pos'].append(self.blue_zy)
+    self.data['Blue_3D_pos'].append(self.blue_pos)
     self.data['Green_zx_pos'].append(self.green_zx)
     self.data['Green_zy_pos'].append(self.green_zy)
+    self.data['Green_3D_pos'].append(self.green_pos)
     self.data['Red_zx_pos'].append(self.red_zx)
     self.data['Red_zy_pos'].append(self.red_zy)
+    self.data['Red_3D_pos'].append(self.red_pos)
     if (elapsed_time > 30 and not self.pickled):
       df = pd.DataFrame(self.data)
       pickle.dump( df, open( "save.p", "wb" ) )
