@@ -7,6 +7,8 @@ import cv2
 import numpy as np
 import os
 import matplotlib.pyplot as plt
+import pickle
+import pandas as pd
 from std_msgs.msg import String
 from sensor_msgs.msg import Image
 from std_msgs.msg import Float64MultiArray, Float64
@@ -34,7 +36,8 @@ class image_converter:
     self.scale_xy = 0.038461538461538464
     self.scale_z = 0.04269918660532219
     self.last_blue = np.array([0,0,2.5])
-    
+    self.data = {'elapsed_time':[], 'expected_Joint2':[], 'expected_Joint3':[], 'expected_Joint4':[], 'Yellow_zx_pos':[], 'Yellow_zy_pos':[],'Blue_zx_pos':[], 'Blue_zy_pos':[],'Green_zx_pos':[], 'Green_zy_pos':[],'Red_zx_pos':[], 'Red_zy_pos':[]}
+    self.pickled = False
 
 
     # self.targetChamfer = cv2.distanceTransform(cv2.bitwise_not(self.targettemp),cv2.DIST_L2,0)
@@ -378,7 +381,7 @@ class image_converter:
     cur_time = rospy.get_time()-self.start_time
     Joint2 = float((np.pi/2)*np.sin((np.pi/15)*cur_time))
     Joint3 = float((np.pi/2)*np.sin((np.pi/18)*cur_time))
-    Joint4 = float((np.pi/2)*np.sin((np.pi/20)*cur_time))
+    Joint4 = float((np.pi/3)*np.sin((np.pi/20)*cur_time))
     return Joint2, Joint3, Joint4
 
   def get_data_from_images(self):
@@ -535,7 +538,7 @@ class image_converter:
     
     # self.image_zy = cv2.GaussianBlur(self.image_zy, (5,5),0)
 
-    self.elapsed_time = rospy.get_time() - self.start_time
+    elapsed_time = rospy.get_time() - self.start_time
     
     self.get_data_from_images()
     self.get_Joint_world_positions()
@@ -555,6 +558,23 @@ class image_converter:
     # print('measured', self.red_pos)
     # print('predicted', self.invkin(0,0.1,0.1,0))
     j2, j3, j4 = self.trajectory()
+
+    self.data['elapsed_time'].append(elapsed_time)
+    self.data['expected_Joint2'].append(j2)
+    self.data['expected_Joint3'].append(j3)
+    self.data['expected_Joint4'].append(j4)
+    self.data['Yellow_zx_pos'].append(self.yellow_zx)
+    self.data['Yellow_zy_pos'].append(self.yellow_zy)
+    self.data['Blue_zx_pos'].append(self.blue_zx)
+    self.data['Blue_zy_pos'].append(self.blue_zy)
+    self.data['Green_zx_pos'].append(self.green_zx)
+    self.data['Green_zy_pos'].append(self.green_zy)
+    self.data['Red_zx_pos'].append(self.red_zx)
+    self.data['Red_zy_pos'].append(self.red_zy)
+    if (elapsed_time > 30 and not self.pickled):
+      df = pd.DataFrame(self.data)
+      pickle.dump( df, open( "save.p", "wb" ) )
+      self.pickled = True
     # joints = self.control_closed()
     # j2 = joints[0]
     # j3 = joints[1]
