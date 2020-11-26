@@ -170,7 +170,7 @@ class image_converter:
       return np.array([cx, cy])
 
   # Detecting the centre of the yellow circle
-  def detect_orange_in_image(self,image):
+  def detect_target_in_image(self,image):
       yellow = cv2.inRange(getattr(self, image), (0, 100, 100), (10, 255, 255)) - cv2.inRange(getattr(self, image), (0, 90, 200), (20, 110, 210))
       kernel = np.ones((5, 5), np.uint8)
       yellow = cv2.morphologyEx(yellow, cv2.MORPH_OPEN, kernel)
@@ -196,8 +196,8 @@ class image_converter:
         x = int(m['m10']/m['m00'])
         y = int(m['m01']/m['m00'])
         if (targetret < wallret):
-            print(image, targetret)
-            print(m['m00'])
+            # print(image, targetret)
+            # print(m['m00'])
             scores.append(targetret)
             centers.append(np.array([x,y]))
       if (len(scores)>=1):
@@ -212,6 +212,53 @@ class image_converter:
           return self.target_zx
       else:
           return self.target_zy
+
+  def detect_wall_in_image(self,image):
+      yellow = cv2.inRange(getattr(self, image), (0, 100, 100), (10, 255, 255)) - cv2.inRange(getattr(self, image), (0, 90, 200), (20, 110, 210))
+      kernel = np.ones((5, 5), np.uint8)
+      yellow = cv2.morphologyEx(yellow, cv2.MORPH_OPEN, kernel)
+      mask = cv2.inRange(getattr(self, image), (0,52,100),(40,180,255))-yellow
+      mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+      mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+
+      # temp = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
+      # mask = cv2.distanceTransform(cv2.bitwise_not(mask),cv2.DIST_L2,0)
+      contours, hierarchy = cv2.findContours(mask,2,1)
+      print(len(contours))
+      scores = []
+      centers = []
+      areas = []
+      for c in range(0,len(contours)):
+        
+        if (image == "iamge_zy"):
+          targetret = cv2.matchShapes(contours[c],self.targetzycont[0],1,0.0)
+          wallret = cv2.matchShapes(contours[c],self.wallzycont[0],1,0.0)
+        else:
+          targetret = cv2.matchShapes(contours[c],self.targetzxcont[0],1,0.0)
+          wallret = cv2.matchShapes(contours[c],self.wallzxcont[0],1,0.0)
+        m = cv2.moments(contours[c])
+        x = int(m['m10']/m['m00'])
+        y = int(m['m01']/m['m00'])
+        if (targetret > wallret):
+            print(image, wallret)
+            print(m['m00'])
+            areas.append(m['m00'])
+            scores.append(wallret)
+            centers.append(np.array([x,y]))
+      if (len(scores)>=1):
+        scind = np.argmin(scores)
+        print('area:', areas[scind])
+        if (scores[scind]< 0.1 and (areas[scind] < 200 or image == 'image_zy')):
+          cent = centers[scind]
+          print('chosen area:', areas[scind])
+          # temp[cent[1]-3:cent[1]+3,cent[0]-3:cent[0]+3] = [0,0,255]
+          # cv2.imshow('o '+image, temp)
+          return cent
+      
+      if (image == 'image_zx'):
+          return self.wall_zx
+      else:
+          return self.wall_zy
 
   def invkin(self,t1, t2, t3, t4):
     st1 = np.sin(t1)
@@ -254,6 +301,8 @@ class image_converter:
       jointpos = self.red_zx
     elif (Joint == 'target'):
       jointpos = self.target_zx
+    elif (Joint == 'wall'):
+      jointpos = self.wall_zx
     vec = jointpos - self.yellow_zx
     return self.scale_zx * vec[0]
 
@@ -271,6 +320,8 @@ class image_converter:
       jointpos = self.red_zy
     elif (Joint == 'target'):
       jointpos = self.target_zy
+    elif (Joint == 'wall'):
+      jointpos = self.wall_zy
     vec = jointpos - self.yellow_zy
     return self.scale_zy * vec[0]
 
@@ -294,6 +345,9 @@ class image_converter:
     elif (Joint == 'target'):
       jointposzy = self.target_zy
       jointposzx = self.target_zx
+    elif (Joint == 'wall'):
+      jointposzy = self.wall_zy
+      jointposzx = self.wall_zx
     z_zy = (self.yellow_zy - jointposzy)[1] * self.scale_z
     z_zx = (self.yellow_zx - jointposzx)[1] * self.scale_z
     return (z_zy + z_zx)/2 #min(z_zy, z_zx)
@@ -321,10 +375,10 @@ class image_converter:
 
   def trajectory(self):
     # get current time
-    cur_time = np.array([rospy.get_time()-self.start_time])
+    cur_time = rospy.get_time()-self.start_time
     Joint2 = float((np.pi/2)*np.sin((np.pi/15)*cur_time))
     Joint3 = float((np.pi/2)*np.sin((np.pi/18)*cur_time))
-    Joint4 = float((np.pi/3)*np.sin((np.pi/20)*cur_time))
+    Joint4 = float((np.pi/2)*np.sin((np.pi/20)*cur_time))
     return Joint2, Joint3, Joint4
 
   def get_data_from_images(self):
@@ -336,8 +390,10 @@ class image_converter:
     self.green_zy = self.detect_green_in_image("image_zy")
     self.yellow_zx = self.detect_yellow_in_image("image_zx")
     self.yellow_zy = self.detect_yellow_in_image("image_zy")
-    self.target_zx = self.detect_orange_in_image("image_zx")
-    self.target_zy = self.detect_orange_in_image("image_zy")
+    self.target_zx = self.detect_target_in_image("image_zx")
+    self.target_zy = self.detect_target_in_image("image_zy")
+    self.wall_zx = self.detect_wall_in_image("image_zx")
+    self.wall_zy = self.detect_wall_in_image("image_zy")
 
     if (self.scale_zx == 0):
       self.scale_zy = self.pixel2meter('zy')
@@ -353,6 +409,7 @@ class image_converter:
     print('green',self.green_pos)
     print('red',self.red_pos)
     self.target_pos = self.detect_position_in_world('target')
+    self.wall_pos = self.detect_position_in_world('wall')
     self.link3 = self.green_pos-np.array([0,0,2.5])
     self.link4 = self.red_pos-self.green_pos
 
@@ -362,17 +419,12 @@ class image_converter:
     m2 =(-np.arctan((self.link3[1])/(self.link3[2])))
     rot = np.array([[np.cos(m3), 0,np.sin(m3)],[0,1,0],[-np.sin(m3),0,np.cos(m3)]]) 
     m2 = self.angleBetweenVecs(self.blue_pos - np.array([0,0,2.5]), np.array([0,0,1]))
-    # m2 = np.arctan2(self.link3[2], self.link3[1])
-    # m2 = self.angleToPlane(self.link3, np.dot(rot, np.array([0,-1,0])))
-    
+
     if (self.green_pos[1] > 0):
       m2 *= -1
 
-
     link3proj = self.projToPlane(self.link3,np.array([0,1,0]))
     print(link3proj)
-    # m2 = self.angleBetweenVecs(np.array([0,0,1]), self.link3)
-
 
     m4 = self.angleBetweenVecs(self.link3, self.link4)
     if (self.green_pos[1] > 0):
@@ -381,15 +433,6 @@ class image_converter:
     else:
       if (self.red_pos[2]>self.green_pos[2]):
         m4 *= -1
-
-    # m2 = np.arccos(self.green_pos[1]/(-3.5*np.cos(m3)))
-    # proj = self.projToPlane(self.link3,np.array([1,0,0]))
-    # print(proj)
-    # m2 = self.angleBetweenVecs(np.array([0,0,1]), proj)
-
-    
-    # print((self.link4[0]/3)/np.sin(m3))
-    # m4 = np.arccos(((self.red_pos[0] - 3.5*np.sin(m3))/3)/np.sin(m3))
     return np.array([m2,m3,m4])
 
   def draw_centers_on_images(self):
@@ -398,7 +441,9 @@ class image_converter:
     self.image_zx[self.yellow_zx[1], self.yellow_zx[0]] = [255,255,255]
     self.image_zx[self.green_zx[1], self.green_zx[0]] = [255,255,255]
     self.image_zx[self.target_zx[1], self.target_zx[0]] = [255,255,255]
+    self.image_zx[self.wall_zx[1], self.wall_zx[0]] = [255,255,255]
 
+    self.image_zy[self.wall_zy[1], self.wall_zy[0]] = [255,255,255]
     self.image_zy[self.target_zy[1], self.target_zy[0]] = [255,255,255]
     self.image_zy[self.red_zy[1], self.red_zy[0]] = [255,255,255]
     self.image_zy[self.blue_zy[1], self.blue_zy[0]] = [255,255,255]
@@ -428,6 +473,7 @@ class image_converter:
     cur_time = np.array([rospy.get_time()])
     dt = cur_time - self.time_previous_step
     self.time_previous_step = cur_time
+    q = self.predict_Joint_angles() # estimate initial value of joints'
     # robot end-effector position
     pos = self.red_pos
     # desired trajectory
@@ -436,13 +482,47 @@ class image_converter:
     self.error_d = ((pos_d - pos) - self.error)/dt
     # estimate error
     self.error = pos_d-pos
-    q = self.predict_Joint_angles() # estimate initial value of joints'
+    
     J_inv = np.linalg.pinv(self.calculate_jacobian(q))  # calculating the psudeo inverse of Jacobian
     t1 = np.dot(K_d,self.error_d.transpose())
     t2 = np.dot(K_p,self.error.transpose())
     t = ( t1 + t2 )
     dq_d = np.dot(J_inv, t)  # control input (angular velocity of joints)
     q_d = q + (dt * dq_d)  # control input (angular position of joints)
+    return q_d
+
+  def control_null(self):
+    # P gain
+    K_p = np.array([[10,0,0],[0,10,0],[0,0,10]])
+    # D gain
+    K_d = np.array([[0.1,0,0],[0,0.1,0],[0,0,0.1]])
+    # estimate time step
+    cur_time = np.array([rospy.get_time()])
+    dt = cur_time - self.time_previous_step
+    self.time_previous_step = cur_time
+    # robot end-effector position
+    pos = self.red_pos 
+    # desired trajectory
+    pos_d = self.target_pos
+    # estimate derivative of error
+    self.error_d = ((pos_d - pos) - self.error)/dt
+    # estimate error
+    self.error = pos_d-pos
+    q = self.predict_Joint_angles() # estimate initial value of joints'
+    J = self.calculate_jacobian(q)
+    J_inv = np.linalg.pinv(J)  # calculating the psudeo inverse of Jacobian
+    t1 = np.dot(K_d,self.error_d.transpose())
+    t2 = np.dot(K_p,self.error.transpose())
+    t = ( t1 + t2 )
+    dq_d = np.dot(J_inv, t)  # control input (angular velocity of joints)
+
+    wall_d = self.wall_pos
+    self.error_w_d = ((wall_d - pos) - self.error)/dt
+    self.error_w = wall_d-pos
+    null = np.eye(3) - np.dot(J_inv, J)
+    second_task = np.dot(null, self.error_w_d.transpose())
+
+    q_d = q + (dt * (dq_d - second_task))  # control input (angular position of joints)
     return q_d
 
   # Recieve data from camera 1, process it, and publish
@@ -491,15 +571,15 @@ class image_converter:
     self.Joint2 = Float64()
     self.Joint2.data = j2 
     # self.Joint2.data = 0.0
-    # self.robot_joint2_pub.publish(self.Joint2)
+    self.robot_joint2_pub.publish(self.Joint2)
     self.Joint3 = Float64()
     self.Joint3.data = j3
     # self.Joint3.data = 1.5
-    # self.robot_joint3_pub.publish(self.Joint3)
+    self.robot_joint3_pub.publish(self.Joint3)
     self.Joint4 = Float64()
     self.Joint4.data = j4
     # self.Joint4.data = 0
-    # self.robot_joint4_pub.publish(self.Joint4)
+    self.robot_joint4_pub.publish(self.Joint4)
     
 
     self.draw_centers_on_images()

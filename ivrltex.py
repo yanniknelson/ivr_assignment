@@ -47,10 +47,13 @@ A34 = rz4*mz4*mx4*rx4
 # pprint((A01*A12), use_unicode=False)
 # pprint((A01*A12*A23).col(3), use_unicode=False)
 FK = A01*A12*A23*A34
-# pprint(FK.col(3), use_unicode=False)
-FK.col_del(1)
-FK.col_del(0)
-print(latex(FK))
+FK.row_del(3)
+# 
+J = Matrix([])
+J = J.col_insert(0,diff(FK.col(3), t2))
+J = J.col_insert(1,diff(FK.col(3), t3))
+pprint(J, use_unicode=False)
+print(latex(J))
 # print(latex(FK))
 # print("")
 # print(latex(FK.col(3)))
